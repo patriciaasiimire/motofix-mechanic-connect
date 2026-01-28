@@ -2,87 +2,110 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Motofix Industrial Design System
+   Built for field mechanics - high contrast, bold, functional */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Core backgrounds */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
 
+    /* Cards and surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 25% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Deep Navy (Trust, Professionalism) */
+    --primary: 212 50% 22%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Slate Gray */
+    --secondary: 210 15% 92%;
+    --secondary-foreground: 215 25% 15%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted surfaces */
+    --muted: 210 15% 95%;
+    --muted-foreground: 215 15% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Safety Orange (Urgency, Action) */
+    --accent: 24 95% 53%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Success - Mechanic Green */
+    --success: 145 65% 42%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Warning - Amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
 
-    --radius: 0.5rem;
+    /* Destructive - Alert Red */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
+    /* Online status */
+    --online: 145 65% 42%;
+    --offline: 215 15% 65%;
+
+    /* Borders and inputs */
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 212 50% 22%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar (unused but required) */
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 215 25% 10%;
+    --foreground: 210 20% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 215 25% 13%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 215 25% 13%;
+    --popover-foreground: 210 20% 95%;
 
     --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary-foreground: 212 50% 22%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 215 20% 20%;
+    --secondary-foreground: 210 20% 95%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 215 20% 18%;
+    --muted-foreground: 215 15% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 24 95% 53%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 145 65% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 210 20% 95%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --online: 145 65% 42%;
+    --offline: 215 15% 45%;
+
+    --border: 215 20% 22%;
+    --input: 215 20% 22%;
+    --ring: 210 40% 80%;
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -100,6 +123,106 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
   }
+
+  /* Mobile-first: prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+@layer components {
+  /* Industrial card styling */
+  .card-industrial {
+    @apply bg-card rounded-xl border-2 border-border shadow-sm;
+  }
+
+  /* Status indicator pulse */
+  .status-pulse {
+    @apply relative;
+  }
+  
+  .status-pulse::before {
+    content: '';
+    @apply absolute inset-0 rounded-full animate-ping opacity-40;
+    background: inherit;
+  }
+
+  /* Big touch button base */
+  .btn-touch {
+    @apply min-h-14 px-6 text-lg font-semibold rounded-xl transition-all duration-150 active:scale-[0.98];
+  }
+
+  /* Accept button */
+  .btn-accept {
+    @apply btn-touch bg-success text-success-foreground hover:bg-success/90;
+  }
+
+  /* Reject button */
+  .btn-reject {
+    @apply btn-touch bg-destructive text-destructive-foreground hover:bg-destructive/90;
+  }
+
+  /* Primary action button */
+  .btn-primary {
+    @apply btn-touch bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+
+  /* Status chip */
+  .status-chip {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium;
+  }
+
+  .status-online {
+    @apply status-chip bg-success/15 text-success;
+  }
+
+  .status-offline {
+    @apply status-chip bg-muted text-muted-foreground;
+  }
+
+  /* Job status badges */
+  .job-status {
+    @apply px-3 py-1.5 rounded-lg text-sm font-semibold uppercase tracking-wide;
+  }
+
+  .job-status-accepted {
+    @apply job-status bg-primary/10 text-primary;
+  }
+
+  .job-status-onway {
+    @apply job-status bg-accent/15 text-accent;
+  }
+
+  .job-status-arrived {
+    @apply job-status bg-warning/15 text-warning;
+  }
+
+  .job-status-completed {
+    @apply job-status bg-success/15 text-success;
+  }
+}
+
+/* Animation for incoming job urgency */
+@keyframes urgent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-urgent {
+  animation: urgent-pulse 1.5s ease-in-out infinite;
+}
+
+/* Safe area padding for mobile */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

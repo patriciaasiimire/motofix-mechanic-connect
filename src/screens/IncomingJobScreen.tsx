@@ -2,6 +2,7 @@ import React from 'react';
 import { useJob } from '@/contexts/JobContext';
 import { useNavigate } from 'react-router-dom';
 import { Car, MapPin, AlertTriangle, Check, X, Loader2 } from 'lucide-react';
+import AttachmentList from '@/components/attachments/AttachmentList';
 
 const IncomingJobScreen: React.FC = () => {
   const { incomingJob, acceptJob, rejectJob, isProcessing } = useJob();
@@ -64,6 +65,13 @@ const IncomingJobScreen: React.FC = () => {
             <p className="text-foreground font-medium leading-relaxed">
               {incomingJob.problem_description}
             </p>
+            
+            {/* Customer Attachments */}
+            {incomingJob.attachments && incomingJob.attachments.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <AttachmentList attachments={incomingJob.attachments} />
+              </div>
+            )}
           </div>
 
           {/* Location */}

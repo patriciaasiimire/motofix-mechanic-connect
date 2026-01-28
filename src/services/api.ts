@@ -127,6 +127,15 @@ export const acceptJob = async (jobId: number): Promise<Job> => {
     id: jobId,
     vehicle_type: 'Toyota Camry',
     problem_description: 'Flat tire on highway',
+    attachments: [
+      {
+        id: 'att-1',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+        filename: 'flat_tire.jpg',
+        mime_type: 'image/jpeg',
+      },
+    ],
     customer_location: '15 Marina Road, Lagos Island',
     customer_latitude: 6.4541,
     customer_longitude: 3.4082,
@@ -145,6 +154,15 @@ export const updateJobStatus = async (jobId: number, status: JobStatus): Promise
     id: jobId,
     vehicle_type: 'Toyota Camry',
     problem_description: 'Flat tire on highway',
+    attachments: [
+      {
+        id: 'att-1',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+        filename: 'flat_tire.jpg',
+        mime_type: 'image/jpeg',
+      },
+    ],
     customer_location: '15 Marina Road, Lagos Island',
     customer_latitude: 6.4541,
     customer_longitude: 3.4082,

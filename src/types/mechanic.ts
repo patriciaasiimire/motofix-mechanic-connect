@@ -13,6 +13,18 @@ export interface Mechanic {
   vehicle_type: string;
 }
 
+// Attachment types for rich problem descriptions
+export type AttachmentType = 'image' | 'audio' | 'document';
+
+export interface Attachment {
+  id: string;
+  type: AttachmentType;
+  url: string;
+  filename?: string;
+  mime_type?: string;
+  created_at?: string;
+}
+
 // Job data model
 export type JobStatus = 'pending' | 'accepted' | 'on_the_way' | 'arrived' | 'completed' | 'rejected';
 
@@ -20,6 +32,7 @@ export interface Job {
   id: number;
   vehicle_type: string;
   problem_description: string;
+  attachments?: Attachment[]; // Optional array of customer attachments
   customer_location: string;
   customer_latitude: number | null;
   customer_longitude: number | null;

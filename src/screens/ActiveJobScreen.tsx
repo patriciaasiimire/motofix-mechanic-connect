@@ -3,6 +3,7 @@ import { useJob } from '@/contexts/JobContext';
 import { useNavigate } from 'react-router-dom';
 import { Car, MapPin, ArrowRight, Check, Loader2 } from 'lucide-react';
 import type { JobStatus } from '@/types/mechanic';
+import AttachmentList from '@/components/attachments/AttachmentList';
 
 const STATUS_FLOW: { status: JobStatus; label: string; nextLabel: string }[] = [
   { status: 'accepted', label: 'Job Accepted', nextLabel: 'Start Driving' },
@@ -90,6 +91,13 @@ const ActiveJobScreen: React.FC = () => {
             <p className="text-foreground font-medium">
               {currentJob.problem_description}
             </p>
+            
+            {/* Customer Attachments */}
+            {currentJob.attachments && currentJob.attachments.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <AttachmentList attachments={currentJob.attachments} />
+              </div>
+            )}
           </div>
 
           {/* Location */}

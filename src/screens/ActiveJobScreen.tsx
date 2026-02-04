@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useJob } from '@/contexts/JobContext';
 import { useNavigate } from 'react-router-dom';
-import { Car, MapPin, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Car, MapPin, ArrowRight, Check, Loader2, Phone } from 'lucide-react';
 import type { JobStatus } from '@/types/mechanic';
 import AttachmentList from '@/components/attachments/AttachmentList';
+import { getCallPartner } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
 
 const STATUS_FLOW: { status: JobStatus; label: string; nextLabel: string }[] = [
   { status: 'accepted', label: 'Job Accepted', nextLabel: 'Start Driving' },
@@ -15,6 +17,8 @@ const STATUS_FLOW: { status: JobStatus; label: string; nextLabel: string }[] = [
 const ActiveJobScreen: React.FC = () => {
   const { currentJob, updateStatus, isProcessing } = useJob();
   const navigate = useNavigate();
+  const toast = useToast();
+  const [isCalling, setIsCalling] = useState(false);
 
   // Redirect if no current job
   React.useEffect(() => {
@@ -30,6 +34,41 @@ const ActiveJobScreen: React.FC = () => {
   const currentStatusIndex = STATUS_FLOW.findIndex(s => s.status === currentJob.status);
   const currentStatusInfo = STATUS_FLOW[currentStatusIndex];
   const nextStatus = STATUS_FLOW[currentStatusIndex + 1]?.status;
+
+  // Check if calling is allowed (only for accepted or on_the_way status)
+  // Note: Backend uses 'en_route' but frontend uses 'on_the_way' - backend will handle mapping
+  const canCallDriver = currentJob.status === 'accepted' || currentJob.status === 'on_the_way';
+
+  const handleCallDriver = async () => {
+    if (!canCallDriver) {
+      toast.toast({ 
+        title: 'Calling unavailable', 
+        description: 'Calling is only available for active jobs',
+        duration: 3000 
+      });
+      return;
+    }
+
+    setIsCalling(true);
+    try {
+      const response = await getCallPartner(currentJob.id);
+      const phone = response.phone;
+      
+      // Never display the phone - just trigger the call
+      if (phone) {
+        window.location.href = `tel:${phone}`;
+      }
+    } catch (error: any) {
+      const message = error?.message || error?.detail || 'Unable to call driver';
+      toast.toast({ 
+        title: 'Call failed', 
+        description: message,
+        duration: 4000 
+      });
+    } finally {
+      setIsCalling(false);
+    }
+  };
 
   const handleNextStatus = async () => {
     if (nextStatus) {
@@ -158,6 +197,22 @@ const ActiveJobScreen: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Call Driver Button - shown only during active job */}
+        {canCallDriver && (
+          <button
+            onClick={handleCallDriver}
+            disabled={isCalling || isProcessing}
+            className="mt-4 btn-touch flex items-center justify-center gap-2 bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isCalling ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Phone className="w-5 h-5" />
+            )}
+            {isCalling ? 'Calling...' : 'Call Driver'}
+          </button>
+        )}
 
         {/* Action Button */}
         {nextStatus && (

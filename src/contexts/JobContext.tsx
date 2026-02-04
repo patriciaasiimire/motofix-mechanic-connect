@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Job, JobStatus } from '@/types/mechanic';
-import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus } from '@/services/api';
+import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile } from '@/services/api';
+import { connectJobsWebSocket, type JobEvent } from '@/services/ws';
+import { useToast } from '@/hooks/use-toast';
 
 interface JobContextType {
   currentJob: Job | null;
@@ -66,49 +68,75 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   // Demo: simulate an incoming job request with attachments
-  const simulateIncomingJob = useCallback(() => {
-    const demoJob: Job = {
-      id: Math.floor(Math.random() * 10000),
-      vehicle_type: 'Honda Accord 2019',
-      problem_description: 'Engine won\'t start - possible battery issue. The car was working fine yesterday but this morning it just clicks when I turn the key.',
-      attachments: [
-        {
-          id: 'demo-img-1',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800',
-          filename: 'engine_bay.jpg',
-          mime_type: 'image/jpeg',
-        },
-        {
-          id: 'demo-img-2',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800',
-          filename: 'battery.jpg',
-          mime_type: 'image/jpeg',
-        },
-        {
-          id: 'demo-audio-1',
-          type: 'audio',
-          url: 'https://www.soundjay.com/transportation/sounds/car-engine-start-1.mp3',
-          filename: 'engine_sound.mp3',
-          mime_type: 'audio/mpeg',
-        },
-        {
-          id: 'demo-doc-1',
-          type: 'document',
-          url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-          filename: 'service_history.pdf',
-          mime_type: 'application/pdf',
-        },
-      ],
-      customer_location: 'Victoria Island, Lagos - Near Eko Hotel',
-      customer_latitude: 6.4281,
-      customer_longitude: 3.4219,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    };
-    setIncomingJob(demoJob);
-  }, []);
+  const toast = useToast();
+
+  useEffect(() => {
+    // Connect to job WebSocket for live events
+    const ws = connectJobsWebSocket((evt: JobEvent) => {
+      if (evt.type === 'new_job') {
+        // If mechanic is not currently handling a job, set incoming job
+        if (!currentJob && !incomingJob) {
+          setIncomingJob(evt.job as Job);
+
+          // Mobile vibration + sound to alert
+          try { window.navigator.vibrate?.(200); } catch (e) {}
+          try { new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg').play().catch(()=>{}); } catch(e){}
+
+          toast.toast({ title: 'Hot job!', description: 'A new job is available — first click wins!', duration: 5000 });
+        }
+      }
+
+      if (evt.type === 'job_taken') {
+        const { job_id, mechanic } = evt;
+        // If this job was our incoming job and someone else took it, notify and clear
+        if (incomingJob && incomingJob.id === job_id) {
+          // If the taken mechanic is the current mechanic, promote job to currentJob
+          getMechanicProfile().then((mech) => {
+            if (mech && mech.id === mechanic.id) {
+              // we won it!
+              setCurrentJob(incomingJob);
+              setIncomingJob(null);
+              toast.toast({ title: 'You won!', description: `You accepted the job — ETA ${evt.eta_minutes || 'TBD'} mins`, duration: 5000 });
+            } else {
+              setIncomingJob(null);
+              toast.toast({ title: 'Job taken', description: `Mechanic ${mechanic.name} took the job`, duration: 4000 });
+            }
+          }).catch(() => {
+            setIncomingJob(null);
+            toast.toast({ title: 'Job taken', description: `Mechanic ${mechanic.name} took the job`, duration: 4000 });
+          });
+        }
+
+        // If this was our current job and someone (shouldn't happen) took it, clear
+        if (currentJob && currentJob.id === job_id) {
+          setCurrentJob(null);
+          toast.toast({ title: 'Job updated', description: `Job was marked taken by ${mechanic.name}`, duration: 4000 });
+        }
+      }
+    });
+
+    return () => ws.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentJob, incomingJob]);
+
+
+  const acceptJob = useCallback(async () => {
+    if (!incomingJob) return;
+    setIsProcessing(true);
+    try {
+      const job = await apiAcceptJob(incomingJob.id);
+      setCurrentJob(job);
+      setIncomingJob(null);
+      toast.toast({ title: 'Accepted', description: 'You accepted the job — good luck!', duration: 4000 });
+    } catch (err: any) {
+      // Show a friendly message if someone else beat us
+      setIncomingJob(null);
+      toast.toast({ title: 'Could not accept', description: err?.message || 'Job was taken by someone else', duration: 4000 });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [incomingJob, toast]);
+
 
   return (
     <JobContext.Provider

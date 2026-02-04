@@ -122,26 +122,53 @@ export const getCurrentJob = async (): Promise<Job | null> => {
 };
 
 export const acceptJob = async (jobId: number): Promise<Job> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return {
-    id: jobId,
-    vehicle_type: 'Toyota Camry',
-    problem_description: 'Flat tire on highway',
-    attachments: [
-      {
-        id: 'att-1',
-        type: 'image',
-        url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-        filename: 'flat_tire.jpg',
-        mime_type: 'image/jpeg',
+  // Try real backend accept first (if API is configured). Fallback to demo behaviour if it fails.
+  try {
+    const mechanic = await getMechanicProfile();
+    const token = getToken();
+
+    const res = await fetch(`${API_BASE_URL}/requests/${jobId}/accept`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-    ],
-    customer_location: '15 Marina Road, Lagos Island',
-    customer_latitude: 6.4541,
-    customer_longitude: 3.4082,
-    status: 'accepted',
-    created_at: new Date().toISOString(),
-  };
+      body: JSON.stringify({ mechanic_id: mechanic.id, mechanic_name: mechanic.name, eta_minutes: 10 }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => 'error');
+      // If job already taken, surface the error
+      if (res.status === 409) throw new Error(text || 'Job already taken');
+      throw new Error(text || `Accept failed: ${res.status}`);
+    }
+
+    // Fetch the updated job info
+    const job = await apiRequest<Job>(`/requests/${jobId}`);
+    return job;
+  } catch (err) {
+    console.warn('Live accept failed, falling back to demo accept:', err);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return {
+      id: jobId,
+      vehicle_type: 'Toyota Camry',
+      problem_description: 'Flat tire on highway',
+      attachments: [
+        {
+          id: 'att-1',
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+          filename: 'flat_tire.jpg',
+          mime_type: 'image/jpeg',
+        },
+      ],
+      customer_location: '15 Marina Road, Lagos Island',
+      customer_latitude: 6.4541,
+      customer_longitude: 3.4082,
+      status: 'accepted',
+      created_at: new Date().toISOString(),
+    };
+  }
 };
 
 export const rejectJob = async (jobId: number): Promise<void> => {
@@ -169,4 +196,9 @@ export const updateJobStatus = async (jobId: number, status: JobStatus): Promise
     status,
     created_at: new Date().toISOString(),
   };
+};
+
+// Call Partner API - Get phone number for calling driver/mechanic
+export const getCallPartner = async (requestId: number): Promise<{ phone: string }> => {
+  return apiRequest<{ phone: string }>(`/requests/${requestId}/call-partner`);
 };

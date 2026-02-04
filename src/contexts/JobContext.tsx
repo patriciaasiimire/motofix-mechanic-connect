@@ -24,18 +24,6 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [incomingJob, setIncomingJob] = useState<Job | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const acceptJob = useCallback(async () => {
-    if (!incomingJob) return;
-    setIsProcessing(true);
-    try {
-      const job = await apiAcceptJob(incomingJob.id);
-      setCurrentJob(job);
-      setIncomingJob(null);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [incomingJob]);
-
   const rejectJob = useCallback(async () => {
     if (!incomingJob) return;
     setIsProcessing(true);

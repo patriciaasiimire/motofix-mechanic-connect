@@ -55,6 +55,25 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIncomingJob(null);
   }, []);
 
+  const simulateIncomingJob = useCallback(() => {
+    const demoJob: Job = {
+      id: Date.now(),
+      vehicle_type: 'Toyota Corolla 2019',
+      problem_description: 'Car won\'t start — engine cranks but doesn\'t turn over. Tried jump-starting with no luck. Possible fuel pump or ignition issue.',
+      customer_location: 'Nasr City, Cairo — near City Stars Mall',
+      customer_latitude: 30.0726,
+      customer_longitude: 31.3456,
+      status: 'pending' as JobStatus,
+      created_at: new Date().toISOString(),
+      attachments: [
+        { id: '1', type: 'image', url: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800', filename: 'engine_photo.jpg' },
+        { id: '2', type: 'audio', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', filename: 'voice_note.mp3' },
+        { id: '3', type: 'document', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', filename: 'insurance_doc.pdf' },
+      ],
+    };
+    setIncomingJob(demoJob);
+  }, []);
+
   // Demo: simulate an incoming job request with attachments
   const toast = useToast();
 

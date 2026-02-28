@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJob } from '@/contexts/JobContext';
 import { updateAvailability, updateLocation } from '@/services/api';
-import { User, MapPin, Bell, BellOff, Loader2, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { User, Bell, BellOff, Loader2, MapPin } from 'lucide-react';
 
 const HomeScreen: React.FC = () => {
   const { mechanic } = useAuth();
-  const { currentJob, incomingJob, simulateIncomingJob } = useJob();
+  const { currentJob, incomingJob } = useJob();
   const navigate = useNavigate();
   
   const [isOnline, setIsOnline] = useState(mechanic?.is_available ?? false);
@@ -171,14 +171,10 @@ const HomeScreen: React.FC = () => {
           </div>
         )}
 
-        {/* Demo Button - Simulate Incoming Job */}
         {isOnline && (
           <button
-            onClick={simulateIncomingJob}
             className="mt-auto flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-accent/30 text-accent hover:bg-accent/5 transition-colors"
           >
-            <Zap className="w-5 h-5" />
-            <span className="font-medium">Demo: Simulate Job Request</span>
           </button>
         )}
       </main>

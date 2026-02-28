@@ -70,7 +70,7 @@ const LoginScreen: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter company-issued password"
+                placeholder="Enter your password"
                 className="w-full h-14 pl-12 pr-4 rounded-xl border-2 border-border bg-card text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none transition-colors"
                 autoComplete="current-password"
                 disabled={isLoading}
@@ -103,12 +103,6 @@ const LoginScreen: React.FC = () => {
           </button>
         </form>
 
-        {/* Demo Hint */}
-        <div className="mt-8 p-4 rounded-xl bg-muted/50 border border-border">
-          <p className="text-xs text-muted-foreground text-center">
-            <span className="font-semibold">Demo:</span> Phone: 1234567890 | Password: motofix123
-          </p>
-        </div>
       </div>
 
       {/* Footer */}

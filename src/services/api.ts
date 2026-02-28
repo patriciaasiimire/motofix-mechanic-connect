@@ -187,3 +187,6 @@ export async function getCallPartnerPhone(requestId: string | number) {
   );
   return handleResponse<{ phone: string }>(res);
 }
+
+// Alias used by ActiveJobScreen
+export const getCallPartner = getCallPartnerPhone;

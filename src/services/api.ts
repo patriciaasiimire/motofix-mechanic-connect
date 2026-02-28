@@ -42,45 +42,97 @@ export function getStoredMechanicId() {
 function authHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
-    ...((_token ? { Authorization: `Bearer ${_token}` } : {}) as HeadersInit),
+    ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
   };
+}
+
+// Extracts a clean, human-readable error message from any API response
+async function extractError(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    // FastAPI 422 returns { detail: [ { loc, msg, type } ] }
+    if (Array.isArray(body.detail)) {
+      return body.detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ");
+    }
+    if (typeof body.detail === "string") return body.detail;
+    if (typeof body.message === "string") return body.message;
+    return "Something went wrong. Please try again.";
+  } catch {
+    return "Something went wrong. Please try again.";
+  }
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      detail = body.detail || JSON.stringify(body);
-    } catch {
-      // ignore parse error
-    }
-    throw new Error(detail);
+    const message = await extractError(res);
+    throw new Error(message);
   }
   return res.json();
 }
 
 // ─── Auth endpoints  (→ motofix-mechanics-service) ───────────────────────────
 
-export interface LoginResponse {
+// Raw response shape from our backend
+interface _LoginResponse {
   token: string;
   mechanic_id: number;
   name: string;
   phone: string;
 }
 
-export async function login(
-  phone: string,
-  password: string
-): Promise<LoginResponse> {
+// Shape AuthContext expects
+export interface LoginResponse {
+  mechanic: {
+    id: number;
+    name: string;
+    phone: string;
+    location: string;
+    latitude: null;
+    longitude: null;
+    specialty: string;
+    rating: number;
+    total_ratings: number;
+    is_available: boolean;
+    vehicle_type: string;
+  };
+}
+
+export interface LoginCredentials {
+  phone: string;
+  password: string;
+}
+
+export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   const res = await fetch(`${MECHANICS_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, password }),
+    body: JSON.stringify({ phone: credentials.phone, password: credentials.password }),
   });
-  const data = await handleResponse<LoginResponse>(res);
+  const data = await handleResponse<_LoginResponse>(res);
   setToken(data.token, data.mechanic_id);
-  return data;
+
+  // Fetch full profile after login so we have all mechanic fields
+  try {
+    const profile = await getMechanicProfile();
+    return { mechanic: profile as any };
+  } catch {
+    // Fallback: return minimal shape from login response
+    return {
+      mechanic: {
+        id: data.mechanic_id,
+        name: data.name,
+        phone: data.phone,
+        location: "",
+        latitude: null,
+        longitude: null,
+        specialty: "",
+        rating: 0,
+        total_ratings: 0,
+        is_available: false,
+        vehicle_type: "car",
+      },
+    };
+  }
 }
 
 export async function register(params: {
@@ -96,9 +148,23 @@ export async function register(params: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
-  const data = await handleResponse<LoginResponse>(res);
+  const data = await handleResponse<_LoginResponse>(res);
   setToken(data.token, data.mechanic_id);
-  return data;
+  return {
+    mechanic: {
+      id: data.mechanic_id,
+      name: data.name,
+      phone: data.phone,
+      location: "",
+      latitude: null,
+      longitude: null,
+      specialty: "",
+      rating: 0,
+      total_ratings: 0,
+      is_available: false,
+      vehicle_type: "car",
+    },
+  };
 }
 
 export async function getMechanicProfile() {
@@ -160,9 +226,6 @@ export async function acceptJob(
 }
 
 export async function rejectJob(_requestId: string | number) {
-  // The service-requests backend has no explicit reject endpoint.
-  // Rejecting simply means the mechanic does nothing — the job stays pending
-  // for another mechanic. We resolve immediately so the UI can clear the alert.
   return Promise.resolve({ status: "rejected" });
 }
 

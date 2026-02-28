@@ -2,16 +2,23 @@
 // Lightweight WebSocket helper for the mechanic app
 import { getToken } from './api';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL as unknown as string) || 'http://localhost:8000';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as unknown as string) || '';
 
 export type JobEvent =
   | { type: 'new_job'; job: any; expires_at?: string }
   | { type: 'job_taken'; job_id: number; mechanic: { id: number; name: string }; eta_minutes?: number; taken_at?: string };
 
 export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
+  // Don't attempt to connect if no backend URL is configured (e.g. local dev without backend)
+  if (!API_BASE_URL) {
+    console.info('[WS] No VITE_API_URL set — skipping WebSocket connection in dev');
+    return { close: () => {} };
+  }
+
   const wsUrl = API_BASE_URL.replace(/^http/, 'ws') + '/ws/jobs';
   let ws: WebSocket | null = null;
   let reconnectTimer: number | null = null;
+  let attempts = 0;
 
   function connect() {
     const token = getToken();
@@ -20,6 +27,7 @@ export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
     ws = new WebSocket(url);
 
     ws.onopen = () => {
+      attempts = 0; // reset backoff on successful connect
       console.log('[WS] connected to', url);
     };
 
@@ -33,13 +41,16 @@ export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
     };
 
     ws.onclose = (ev) => {
-      console.log('[WS] closed - will retry in 2s', ev.reason);
+      // Exponential backoff: 2s, 4s, 8s, capped at 30s
+      attempts++;
+      const delay = Math.min(2000 * Math.pow(2, attempts - 1), 30000);
+      console.log(`[WS] closed - will retry in ${delay / 1000}s`, ev.reason);
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      reconnectTimer = window.setTimeout(connect, 2000);
+      reconnectTimer = window.setTimeout(connect, delay);
     };
 
-    ws.onerror = (err) => {
-      console.warn('[WS] error', err);
+    ws.onerror = () => {
+      // Suppress noisy error event — the close handler will manage reconnection
       ws?.close();
     };
   }
@@ -48,6 +59,7 @@ export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
 
   return {
     close: () => {
+      attempts = 999; // prevent any pending reconnect from firing
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       ws?.close();
     },

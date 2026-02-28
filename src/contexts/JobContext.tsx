@@ -56,6 +56,30 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   // Demo: simulate an incoming job request with attachments
+  const simulateIncomingJob = useCallback(() => {
+    const demoJob: Job = {
+      id: Math.floor(Math.random() * 10000),
+      vehicle_type: 'Boda Boda (Motorcycle)',
+      problem_description: "Engine won't start — possible dead battery or fuel issue",
+      attachments: [
+        {
+          id: 'demo-1',
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+          filename: 'breakdown_photo.jpg',
+          mime_type: 'image/jpeg',
+        },
+      ],
+      customer_location: 'Kampala Road, near Garden City Mall',
+      customer_latitude: 0.3162,
+      customer_longitude: 32.5822,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+    setIncomingJob(demoJob);
+    try { window.navigator.vibrate?.(200); } catch (e) {}
+  }, []);
+
   const toast = useToast();
 
   useEffect(() => {

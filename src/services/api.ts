@@ -1,123 +1,185 @@
-import type { AuthResponse, LoginCredentials, Mechanic, Job, JobStatus } from '@/types/mechanic';
+// src/services/api.ts
+//
+// Two base URLs:
+//   VITE_API_URL          → motofix-mechanics-service  (auth, profile, availability, location)
+//   VITE_REQUESTS_URL     → motofix-service-requests   (jobs, accept, status, call-partner)
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const MECHANICS_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const REQUESTS_BASE =
+  import.meta.env.VITE_REQUESTS_URL || "http://localhost:8001";
 
-// Token management
-const TOKEN_KEY = 'motofix_token';
+// ─── Auth token helpers ───────────────────────────────────────────────────────
 
-export const getToken = (): string | null => {
-  return localStorage.getItem(TOKEN_KEY);
-};
+let _token: string | null = localStorage.getItem("motofix_token");
+let _mechanicId: number | null = Number(localStorage.getItem("motofix_id")) || null;
 
-export const setToken = (token: string): void => {
-  localStorage.setItem(TOKEN_KEY, token);
-};
+export function setToken(token: string, mechanicId: number) {
+  _token = token;
+  _mechanicId = mechanicId;
+  localStorage.setItem("motofix_token", token);
+  localStorage.setItem("motofix_id", String(mechanicId));
+}
 
-export const clearToken = (): void => {
-  localStorage.removeItem(TOKEN_KEY);
-};
+export function clearToken() {
+  _token = null;
+  _mechanicId = null;
+  localStorage.removeItem("motofix_token");
+  localStorage.removeItem("motofix_id");
+}
 
-// HTTP client with auth
-const apiRequest = async <T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> => {
-  const token = getToken();
+export function getToken() {
+  return _token;
+}
 
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
+export function getStoredMechanicId() {
+  return _mechanicId;
+}
+
+function authHeaders(): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    ...((_token ? { Authorization: `Bearer ${_token}` } : {}) as HeadersInit),
   };
+}
 
-  if (token) {
-    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+async function handleResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail || JSON.stringify(body);
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(detail);
   }
+  return res.json();
+}
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
+// ─── Auth endpoints  (→ motofix-mechanics-service) ───────────────────────────
+
+export interface LoginResponse {
+  token: string;
+  mechanic_id: number;
+  name: string;
+  phone: string;
+}
+
+export async function login(
+  phone: string,
+  password: string
+): Promise<LoginResponse> {
+  const res = await fetch(`${MECHANICS_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, password }),
   });
+  const data = await handleResponse<LoginResponse>(res);
+  setToken(data.token, data.mechanic_id);
+  return data;
+}
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Network error' }));
-    throw new Error(error.detail || `Request failed: ${response.status}`);
-  }
-
-  return response.json();
-};
-
-// Auth API
-export const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
-  const response = await apiRequest<AuthResponse>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(credentials),
+export async function register(params: {
+  name: string;
+  phone: string;
+  password: string;
+  location?: string;
+  specialty?: string;
+  vehicle_type?: string;
+}): Promise<LoginResponse> {
+  const res = await fetch(`${MECHANICS_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
   });
-  setToken(response.access_token);
-  return response;
-};
+  const data = await handleResponse<LoginResponse>(res);
+  setToken(data.token, data.mechanic_id);
+  return data;
+}
 
-export const logout = (): void => {
-  clearToken();
-};
+export async function getMechanicProfile() {
+  const res = await fetch(`${MECHANICS_BASE}/auth/me`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<Record<string, unknown>>(res);
+}
 
-// Mechanic API
-export const getMechanicProfile = async (): Promise<Mechanic> => {
-  return apiRequest<Mechanic>('/auth/me');
-};
+// ─── Mechanic self-management  (→ motofix-mechanics-service) ─────────────────
 
-export const updateAvailability = async (isAvailable: boolean): Promise<{ is_available: boolean }> => {
-  return apiRequest<{ is_available: boolean }>('/mechanics/me/availability', {
-    method: 'PATCH',
+export async function updateAvailability(isAvailable: boolean) {
+  const res = await fetch(`${MECHANICS_BASE}/mechanics/me/availability`, {
+    method: "PATCH",
+    headers: authHeaders(),
     body: JSON.stringify({ is_available: isAvailable }),
   });
-};
+  return handleResponse<{ id: number; is_available: boolean }>(res);
+}
 
-export const updateLocation = async (latitude: number, longitude: number): Promise<void> => {
-  await apiRequest<void>('/mechanics/me/location', {
-    method: 'PATCH',
-    body: JSON.stringify({ latitude, longitude }),
+export async function updateLocation(
+  latitude: number,
+  longitude: number,
+  location?: string
+) {
+  const res = await fetch(`${MECHANICS_BASE}/mechanics/me/location`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ latitude, longitude, ...(location ? { location } : {}) }),
   });
-};
+  return handleResponse<Record<string, unknown>>(res);
+}
 
-// Job API
-export const getCurrentJob = async (): Promise<Job | null> => {
-  return apiRequest<Job | null>('/mechanics/me/current-job');
-};
-
-export const acceptJob = async (jobId: number): Promise<Job> => {
-  const mechanic = await getMechanicProfile();
-  const token = getToken();
-
-  const res = await fetch(`${API_BASE_URL}/requests/${jobId}/accept`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ mechanic_id: mechanic.id, mechanic_name: mechanic.name, eta_minutes: 10 }),
+export async function getCurrentJob() {
+  const res = await fetch(`${MECHANICS_BASE}/mechanics/me/current-job`, {
+    headers: authHeaders(),
   });
+  return handleResponse<{ job: Record<string, unknown> | null }>(res);
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => 'error');
-    if (res.status === 409) throw new Error(text || 'Job already taken');
-    throw new Error(text || `Accept failed: ${res.status}`);
-  }
+// ─── Job endpoints  (→ motofix-service-requests) ─────────────────────────────
 
-  return apiRequest<Job>(`/requests/${jobId}`);
-};
-
-export const rejectJob = async (jobId: number): Promise<void> => {
-  await apiRequest<void>(`/requests/${jobId}/reject`, { method: 'PATCH' });
-};
-
-export const updateJobStatus = async (jobId: number, status: JobStatus): Promise<Job> => {
-  return apiRequest<Job>(`/requests/${jobId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
+export async function acceptJob(
+  requestId: string | number,
+  mechanicId: number,
+  mechanicName: string,
+  etaMinutes = 15
+) {
+  const res = await fetch(`${REQUESTS_BASE}/requests/${requestId}/accept`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      mechanic_id: mechanicId,
+      mechanic_name: mechanicName,
+      eta_minutes: etaMinutes,
+    }),
   });
-};
+  return handleResponse<Record<string, unknown>>(res);
+}
 
-// Call Partner API
-export const getCallPartner = async (requestId: number): Promise<{ phone: string }> => {
-  return apiRequest<{ phone: string }>(`/requests/${requestId}/call-partner`);
-};
+export async function rejectJob(_requestId: string | number) {
+  // The service-requests backend has no explicit reject endpoint.
+  // Rejecting simply means the mechanic does nothing — the job stays pending
+  // for another mechanic. We resolve immediately so the UI can clear the alert.
+  return Promise.resolve({ status: "rejected" });
+}
+
+export async function updateJobStatus(
+  requestId: string | number,
+  status: "en_route" | "completed" | "cancelled"
+) {
+  const res = await fetch(
+    `${REQUESTS_BASE}/requests/${requestId}/status?status=${status}`,
+    {
+      method: "PATCH",
+      headers: authHeaders(),
+    }
+  );
+  return handleResponse<{ detail: string; new_status: string }>(res);
+}
+
+export async function getCallPartnerPhone(requestId: string | number) {
+  const res = await fetch(
+    `${REQUESTS_BASE}/requests/${requestId}/call-partner`,
+    { headers: authHeaders() }
+  );
+  return handleResponse<{ phone: string }>(res);
+}

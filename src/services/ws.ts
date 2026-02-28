@@ -2,7 +2,7 @@
 // Lightweight WebSocket helper for the mechanic app
 import { getToken } from './api';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL as unknown as string) || '';
+const API_BASE_URL = (import.meta.env.VITE_REQUESTS_URL as unknown as string) || '';
 
 export type JobEvent =
   | { type: 'new_job'; job: any; expires_at?: string }
@@ -11,7 +11,7 @@ export type JobEvent =
 export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
   // Don't attempt to connect if no backend URL is configured (e.g. local dev without backend)
   if (!API_BASE_URL) {
-    console.info('[WS] No VITE_API_URL set — skipping WebSocket connection in dev');
+    console.info('[WS] No VITE_REQUESTS_URL set — skipping WebSocket connection in dev');
     return { close: () => {} };
   }
 

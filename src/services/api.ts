@@ -27,6 +27,10 @@ export function clearToken() {
   localStorage.removeItem("motofix_id");
 }
 
+export function logout() {
+  clearToken();
+}
+
 export function getToken() {
   return _token;
 }

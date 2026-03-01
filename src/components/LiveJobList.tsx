@@ -3,6 +3,7 @@ import type { Job } from '@/types/mechanic';
 import { connectJobsWebSocket } from '@/services/ws';
 import { acceptJob } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LiveJob extends Job {
   expires_at?: string; // ISO
@@ -12,6 +13,7 @@ export const LiveJobList: React.FC = () => {
   const [jobs, setJobs] = useState<LiveJob[]>([]);
   const [accepting, setAccepting] = useState<number | null>(null);
   const toast = useToast();
+  const { mechanic } = useAuth();
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -47,9 +49,10 @@ export const LiveJobList: React.FC = () => {
   }, []);
 
   const handleAccept = async (jobId: number) => {
+    if (!mechanic) return;
     setAccepting(jobId);
     try {
-      await acceptJob(jobId);
+      await acceptJob(jobId, mechanic.id, mechanic.name);
 
       // Play winner animation + sound
       try { new Audio('https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg').play().catch(()=>{}); } catch (e) {}

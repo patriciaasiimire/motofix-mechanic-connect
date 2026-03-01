@@ -3,6 +3,7 @@ import type { Job, JobStatus } from '@/types/mechanic';
 import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile } from '@/services/api';
 import { connectJobsWebSocket, type JobEvent } from '@/services/ws';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface JobContextType {
   currentJob: Job | null;
@@ -22,6 +23,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [incomingJob, setIncomingJob] = useState<Job | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const toast = useToast();
+  const { mechanic } = useAuth();
 
   const rejectJob = useCallback(async () => {
     if (!incomingJob) return;
@@ -95,10 +97,10 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentJob, incomingJob]);
 
   const acceptJob = useCallback(async () => {
-    if (!incomingJob) return;
+    if (!incomingJob || !mechanic) return;
     setIsProcessing(true);
     try {
-      const job = await apiAcceptJob(incomingJob.id);
+      const job = await apiAcceptJob(incomingJob.id, mechanic.id, mechanic.name);
       setCurrentJob(job);
       setIncomingJob(null);
       toast.toast({ title: 'Accepted', description: 'Job accepted — good luck!', duration: 4000 });
@@ -108,7 +110,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsProcessing(false);
     }
-  }, [incomingJob, toast]);
+  }, [incomingJob, mechanic, toast]);
 
   return (
     <JobContext.Provider

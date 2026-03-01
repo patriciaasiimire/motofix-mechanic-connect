@@ -233,8 +233,13 @@ export async function updateJobStatus(
   requestId: string | number,
   status: "en_route" | "completed" | "cancelled"
 ) {
+  // Map frontend status values to what the backend accepts
+  const backendStatus =
+    (status as string) === "on_the_way" || (status as string) === "arrived"
+      ? "en_route"
+      : status;
   const res = await fetch(
-    `${REQUESTS_BASE}/requests/${requestId}/status?status=${status}`,
+    `${REQUESTS_BASE}/requests/${requestId}/status?status=${backendStatus}`,
     {
       method: "PATCH",
       headers: authHeaders(),

@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { Job, JobStatus } from '@/types/mechanic';
-import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile } from '@/services/api';
+import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile, getStoredMechanicId } from '@/services/api';
 import { connectJobsWebSocket, type JobEvent } from '@/services/ws';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface JobContextType {
   currentJob: Job | null;
@@ -23,7 +22,6 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [incomingJob, setIncomingJob] = useState<Job | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const toast = useToast();
-  const { mechanic } = useAuth();
 
   const rejectJob = useCallback(async () => {
     if (!incomingJob) return;
@@ -40,11 +38,11 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!currentJob) return;
     setIsProcessing(true);
     try {
-      const updated = await apiUpdateJobStatus(currentJob.id, status);
+      await apiUpdateJobStatus(currentJob.id, status as "en_route" | "completed" | "cancelled");
       if (status === 'completed') {
         setCurrentJob(null);
       } else {
-        setCurrentJob(updated);
+        setCurrentJob({ ...currentJob, status });
       }
     } finally {
       setIsProcessing(false);
@@ -97,11 +95,14 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentJob, incomingJob]);
 
   const acceptJob = useCallback(async () => {
-    if (!incomingJob || !mechanic) return;
+    if (!incomingJob) return;
     setIsProcessing(true);
     try {
-      const job = await apiAcceptJob(incomingJob.id, mechanic.id, mechanic.name);
-      setCurrentJob(job);
+      const mechanicId = getStoredMechanicId() || 0;
+      const profile = await getMechanicProfile().catch(() => null) as any;
+      const mechanicName = profile?.full_name || profile?.name || 'Mechanic';
+      await apiAcceptJob(incomingJob.id, mechanicId, mechanicName);
+      setCurrentJob(incomingJob);  // use incomingJob directly — it has the correct id
       setIncomingJob(null);
       toast.toast({ title: 'Accepted', description: 'Job accepted — good luck!', duration: 4000 });
     } catch (err: any) {
@@ -110,7 +111,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsProcessing(false);
     }
-  }, [incomingJob, mechanic, toast]);
+  }, [incomingJob, toast]);
 
   return (
     <JobContext.Provider

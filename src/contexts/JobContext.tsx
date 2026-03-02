@@ -112,7 +112,19 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const ws = connectJobsWebSocket((evt: JobEvent) => {
       if (evt.type === 'new_job') {
         if (!currentJob && !incomingJob) {
-          setIncomingJob(evt.job as Job);
+          const raw = evt.job as any;
+          const normalized: Job = {
+            id: raw.id,
+            vehicle_type: raw.vehicle_type ?? raw.service_type ?? '',
+            problem_description: raw.problem_description ?? raw.description ?? '',
+            customer_location: raw.customer_location ?? raw.location ?? '',
+            customer_latitude: raw.customer_latitude ?? raw.latitude ?? null,
+            customer_longitude: raw.customer_longitude ?? raw.longitude ?? null,
+            status: raw.status ?? 'pending',
+            created_at: raw.created_at ?? new Date().toISOString(),
+            attachments: raw.attachments,
+          };
+          setIncomingJob(normalized);
           feedback.onIncomingJob();
           toast.toast({ title: 'New job!', description: 'A job request is available', duration: 5000 });
         }

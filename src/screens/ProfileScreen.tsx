@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Wrench, Car, Star, LogOut, ChevronLeft, Moon, Sun, Trophy, ChevronRight } from 'lucide-react';
+import { User, Phone, Wrench, Car, Star, LogOut, Moon, Sun, Trophy, ChevronRight } from 'lucide-react';
 import { useDarkMode } from '@/hooks/use-dark-mode';
 import { loadStats, getLevelInfo } from '@/services/gamification';
 
@@ -35,20 +35,12 @@ const ProfileScreen: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-background safe-area-top safe-area-bottom">
       {/* Header */}
       <header className="px-4 py-4 border-b border-border bg-card">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
-            aria-label="Go back"
-          >
-            <ChevronLeft className="w-5 h-5 text-foreground" />
-          </button>
+        <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-foreground">Profile</h1>
           <button
             type="button"
             onClick={toggleDark}
-            className="ml-auto p-2 rounded-lg hover:bg-muted transition-colors"
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
             aria-label="Toggle dark mode"
           >
             {isDark ? (
@@ -61,7 +53,7 @@ const ProfileScreen: React.FC = () => {
       </header>
 
       {/* Content */}
-      <main className="flex-1 flex flex-col p-4">
+      <main className="flex-1 flex flex-col p-4 pb-24">
         {/* Avatar & Name */}
         <div className="flex flex-col items-center py-6">
           <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-4">

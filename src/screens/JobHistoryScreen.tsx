@@ -1,10 +1,8 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Clock, Car, MapPin, CheckCircle } from 'lucide-react';
+import { Clock, Car, MapPin, CheckCircle } from 'lucide-react';
 import { getJobHistory } from '@/contexts/JobContext';
 
 const JobHistoryScreen: React.FC = () => {
-  const navigate = useNavigate();
   const history = getJobHistory();
 
   const formatDate = (iso: string) => {
@@ -20,22 +18,15 @@ const JobHistoryScreen: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background safe-area-top safe-area-bottom">
       <header className="px-4 py-4 border-b border-border bg-card">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
-            aria-label="Go back"
-          >
-            <ChevronLeft className="w-5 h-5 text-foreground" />
-          </button>
+        <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-foreground">Job History</h1>
           {history.length > 0 && (
-            <span className="ml-auto text-sm text-muted-foreground">{history.length} jobs</span>
+            <span className="text-sm text-muted-foreground">{history.length} jobs</span>
           )}
         </div>
       </header>
 
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 pb-20">
         {history.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
             <Clock className="w-14 h-14 mb-4 opacity-25" />

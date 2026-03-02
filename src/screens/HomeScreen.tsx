@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJob } from '@/contexts/JobContext';
 import { updateAvailability, updateLocation } from '@/services/api';
-import { useNavigate } from 'react-router-dom';
-import { User, Bell, BellOff, Loader2, MapPin, History, RefreshCw, Trophy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // still needed for job redirects
+import { User, Bell, BellOff, Loader2, MapPin, RefreshCw } from 'lucide-react';
 import { StreakBadge } from '@/components/StreakBadge';
 import { loadStats, getLevelInfo } from '@/services/gamification';
 
@@ -113,48 +113,20 @@ const HomeScreen: React.FC = () => {
 
       {/* Header */}
       <header className="px-4 py-4 border-b border-border bg-card">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-foreground">{mechanic?.name}</h1>
-              <p className="text-xs text-muted-foreground">{levelTitle}</p>
-            </div>
-            <StreakBadge className="ml-1" />
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <User className="w-6 h-6 text-primary" />
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => navigate('/stats')}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Stats & Achievements"
-            >
-              <Trophy className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/history')}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Job history"
-            >
-              <History className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="View profile"
-            >
-              <User className="w-5 h-5 text-muted-foreground" />
-            </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold text-foreground truncate">{mechanic?.name}</h1>
+            <p className="text-xs text-muted-foreground">{levelTitle}</p>
           </div>
+          <StreakBadge />
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-4 gap-4">
+      <main className="flex-1 flex flex-col p-4 gap-4 pb-20">
         {/* Status Card */}
         <div className="card-industrial p-6">
           <div className="flex flex-col items-center text-center">

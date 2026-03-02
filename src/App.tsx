@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JobProvider } from "@/contexts/JobContext";
 import { NetworkBanner } from "@/components/NetworkBanner";
+import { BottomNav } from "@/components/BottomNav";
 
 // Screens
 import LoginScreen from "@/screens/LoginScreen";
@@ -58,6 +59,14 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Layout for the 4 bottom-nav tab screens
+const MainLayout = ({ children }: { children: React.ReactNode }) => (
+  <>
+    {children}
+    <BottomNav />
+  </>
+);
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -73,7 +82,9 @@ const AppRoutes = () => {
         path="/"
         element={
           <ProtectedRoute>
-            <HomeScreen />
+            <MainLayout>
+              <HomeScreen />
+            </MainLayout>
           </ProtectedRoute>
         }
       />
@@ -97,7 +108,9 @@ const AppRoutes = () => {
         path="/profile"
         element={
           <ProtectedRoute>
-            <ProfileScreen />
+            <MainLayout>
+              <ProfileScreen />
+            </MainLayout>
           </ProtectedRoute>
         }
       />
@@ -105,7 +118,9 @@ const AppRoutes = () => {
         path="/history"
         element={
           <ProtectedRoute>
-            <JobHistoryScreen />
+            <MainLayout>
+              <JobHistoryScreen />
+            </MainLayout>
           </ProtectedRoute>
         }
       />
@@ -121,7 +136,9 @@ const AppRoutes = () => {
         path="/stats"
         element={
           <ProtectedRoute>
-            <StatsScreen />
+            <MainLayout>
+              <StatsScreen />
+            </MainLayout>
           </ProtectedRoute>
         }
       />

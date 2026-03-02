@@ -168,7 +168,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const profile = await getMechanicProfile().catch(() => null) as any;
       const mechanicName = profile?.full_name || profile?.name || 'Mechanic';
       await apiAcceptJob(incomingJob.id, mechanicId, mechanicName);
-      setCurrentJob(incomingJob);  // use incomingJob directly — it has the correct id
+      setCurrentJob({ ...incomingJob, status: 'accepted' });  // backend default is 'pending'; set 'accepted' so STATUS_FLOW works
       setIncomingJob(null);
       feedback.onJobAccepted();
       toast.toast({ title: 'Accepted', description: 'Job accepted — good luck!', duration: 4000 });

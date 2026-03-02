@@ -7,6 +7,13 @@ import AttachmentList from '@/components/attachments/AttachmentList';
 import { getCallPartner } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
+/** Split "Nansana (0.369382, 32.513763)" into { name, coords } for display. */
+function parseLocationDisplay(loc: string): { name: string; coords: string | null } {
+  const match = loc.match(/^(.+?)\s*\((-?\d+\.?\d*,\s*-?\d+\.?\d*)\)\s*$/);
+  if (match) return { name: match[1].trim(), coords: match[2].trim() };
+  return { name: loc, coords: null };
+}
+
 const STATUS_FLOW: { status: JobStatus; label: string; nextLabel: string }[] = [
   { status: 'accepted', label: 'Job Accepted', nextLabel: 'Start Driving' },
   { status: 'on_the_way', label: 'On the Way', nextLabel: 'I\'ve Arrived' },
@@ -149,9 +156,17 @@ const ActiveJobScreen: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-muted-foreground mb-1">Location</p>
-                <p className="text-foreground font-medium">
-                  {currentJob.customer_location}
-                </p>
+                {(() => {
+                  const { name, coords } = parseLocationDisplay(currentJob.customer_location);
+                  return (
+                    <>
+                      <p className="text-foreground font-medium">{name}</p>
+                      {coords && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{coords}</p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

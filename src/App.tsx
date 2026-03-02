@@ -136,9 +136,7 @@ const AppRoutes = () => {
         path="/stats"
         element={
           <ProtectedRoute>
-            <MainLayout>
-              <StatsScreen />
-            </MainLayout>
+            <StatsScreen />
           </ProtectedRoute>
         }
       />

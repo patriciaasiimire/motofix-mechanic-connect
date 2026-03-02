@@ -1,9 +1,11 @@
 import React from 'react';
-import { Flame, Briefcase, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, Flame, Briefcase, Zap } from 'lucide-react';
 import { loadStats, getLevelInfo, BADGES } from '@/services/gamification';
 import { LEVELS } from '@/types/gamification';
 
 const StatsScreen: React.FC = () => {
+  const navigate = useNavigate();
   const stats = loadStats();
   const levelInfo = getLevelInfo(stats.xp);
 
@@ -13,10 +15,20 @@ const StatsScreen: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-background safe-area-top safe-area-bottom">
       {/* Header */}
       <header className="px-4 py-4 border-b border-border bg-card">
-        <h1 className="text-lg font-bold text-foreground">Stats & Achievements</h1>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
+            aria-label="Go back"
+          >
+            <ChevronLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <h1 className="text-lg font-bold text-foreground">Stats & Achievements</h1>
+        </div>
       </header>
 
-      <main className="flex-1 p-4 space-y-4 overflow-y-auto pb-20">
+      <main className="flex-1 p-4 space-y-4 overflow-y-auto">
 
         {/* Level / XP Card */}
         <div className="card-industrial p-5">

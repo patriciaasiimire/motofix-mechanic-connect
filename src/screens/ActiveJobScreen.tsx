@@ -72,9 +72,10 @@ const ActiveJobScreen: React.FC = () => {
 
   const handleNextStatus = async () => {
     if (nextStatus) {
+      const jobSnapshot = currentJob;
       await updateStatus(nextStatus);
       if (nextStatus === 'completed') {
-        navigate('/', { replace: true });
+        navigate('/completion', { replace: true, state: { job: jobSnapshot, completedAt: new Date().toISOString() } });
       }
     }
   };

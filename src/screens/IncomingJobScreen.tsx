@@ -1,14 +1,31 @@
 import React from 'react';
 import { useJob } from '@/contexts/JobContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Car, MapPin, AlertTriangle, Check, X, Loader2 } from 'lucide-react';
+import { Car, MapPin, AlertTriangle, Check, X, Loader2, Navigation } from 'lucide-react';
 import AttachmentList from '@/components/attachments/AttachmentList';
+
+// Haversine distance in km
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Average city driving speed ~30 km/h
+function etaMinutes(km: number): number {
+  return Math.ceil((km / 30) * 60);
+}
 
 const IncomingJobScreen: React.FC = () => {
   const { incomingJob, acceptJob, rejectJob, isProcessing } = useJob();
+  const { mechanic } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if no incoming job
   React.useEffect(() => {
     if (!incomingJob) {
       navigate('/', { replace: true });
@@ -25,9 +42,19 @@ const IncomingJobScreen: React.FC = () => {
     navigate('/', { replace: true });
   };
 
-  if (!incomingJob) {
-    return null;
-  }
+  if (!incomingJob) return null;
+
+  // Compute distance if both mechanic and customer coords are known
+  const distanceInfo = (() => {
+    const mLat = mechanic?.latitude;
+    const mLon = mechanic?.longitude;
+    const cLat = incomingJob.customer_latitude;
+    const cLon = incomingJob.customer_longitude;
+    if (!mLat || !mLon || !cLat || !cLon) return null;
+    const km = haversineKm(mLat, mLon, cLat, cLon);
+    const mins = etaMinutes(km);
+    return { km: km.toFixed(1), mins };
+  })();
 
   return (
     <div className="min-h-screen flex flex-col bg-background safe-area-top safe-area-bottom">
@@ -65,8 +92,7 @@ const IncomingJobScreen: React.FC = () => {
             <p className="text-foreground font-medium leading-relaxed">
               {incomingJob.problem_description}
             </p>
-            
-            {/* Customer Attachments */}
+
             {incomingJob.attachments && incomingJob.attachments.length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <AttachmentList attachments={incomingJob.attachments} />
@@ -74,7 +100,7 @@ const IncomingJobScreen: React.FC = () => {
             )}
           </div>
 
-          {/* Location */}
+          {/* Location + Distance */}
           <div className="card-industrial p-5">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
@@ -85,6 +111,12 @@ const IncomingJobScreen: React.FC = () => {
                 <p className="text-foreground font-medium">
                   {incomingJob.customer_location}
                 </p>
+                {distanceInfo && (
+                  <div className="flex items-center gap-1.5 mt-2 text-sm text-primary font-semibold">
+                    <Navigation className="w-4 h-4" />
+                    {distanceInfo.km} km away · ~{distanceInfo.mins} min drive
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -93,6 +125,7 @@ const IncomingJobScreen: React.FC = () => {
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-3 mt-6">
           <button
+            type="button"
             onClick={handleReject}
             disabled={isProcessing}
             className="btn-reject flex items-center justify-center gap-2 disabled:opacity-50"
@@ -107,6 +140,7 @@ const IncomingJobScreen: React.FC = () => {
             )}
           </button>
           <button
+            type="button"
             onClick={handleAccept}
             disabled={isProcessing}
             className="btn-accept flex items-center justify-center gap-2 disabled:opacity-50"
@@ -122,9 +156,8 @@ const IncomingJobScreen: React.FC = () => {
           </button>
         </div>
 
-        {/* Tip */}
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Respond quickly - customer is waiting
+          Respond quickly — customer is waiting
         </p>
       </main>
     </div>

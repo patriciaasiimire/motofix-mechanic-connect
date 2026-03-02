@@ -1,20 +1,20 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Wrench, Car, Star, LogOut, ChevronLeft } from 'lucide-react';
+import { User, Phone, Wrench, Car, Star, LogOut, ChevronLeft, Moon, Sun } from 'lucide-react';
+import { useDarkMode } from '@/hooks/use-dark-mode';
 
 const ProfileScreen: React.FC = () => {
   const { mechanic, logout } = useAuth();
   const navigate = useNavigate();
+  const { isDark, toggle: toggleDark } = useDarkMode();
 
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
 
-  if (!mechanic) {
-    return null;
-  }
+  if (!mechanic) return null;
 
   const infoItems = [
     { icon: Phone, label: 'Phone', value: mechanic.phone },
@@ -33,6 +33,7 @@ const ProfileScreen: React.FC = () => {
       <header className="px-4 py-4 border-b border-border bg-card">
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={() => navigate(-1)}
             className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
             aria-label="Go back"
@@ -40,6 +41,18 @@ const ProfileScreen: React.FC = () => {
             <ChevronLeft className="w-5 h-5 text-foreground" />
           </button>
           <h1 className="text-lg font-bold text-foreground">Profile</h1>
+          <button
+            type="button"
+            onClick={toggleDark}
+            className="ml-auto p-2 rounded-lg hover:bg-muted transition-colors"
+            aria-label="Toggle dark mode"
+          >
+            {isDark ? (
+              <Sun className="w-5 h-5 text-warning" />
+            ) : (
+              <Moon className="w-5 h-5 text-muted-foreground" />
+            )}
+          </button>
         </div>
       </header>
 
@@ -75,6 +88,7 @@ const ProfileScreen: React.FC = () => {
 
         {/* Logout Button */}
         <button
+          type="button"
           onClick={handleLogout}
           className="mt-auto mb-4 btn-touch flex items-center justify-center gap-2 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
         >
@@ -82,7 +96,6 @@ const ProfileScreen: React.FC = () => {
           Sign Out
         </button>
 
-        {/* Footer */}
         <p className="text-center text-xs text-muted-foreground">
           Contact your supervisor to update your profile
         </p>

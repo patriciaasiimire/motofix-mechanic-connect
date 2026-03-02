@@ -1,56 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJob } from '@/contexts/JobContext';
 import { updateAvailability, updateLocation } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, BellOff, Loader2, MapPin } from 'lucide-react';
+import { User, Bell, BellOff, Loader2, MapPin, History, RefreshCw } from 'lucide-react';
+
+const PULL_THRESHOLD = 80; // px needed to trigger refresh
 
 const HomeScreen: React.FC = () => {
   const { mechanic } = useAuth();
   const { currentJob, incomingJob } = useJob();
   const navigate = useNavigate();
-  
+
   const [isOnline, setIsOnline] = useState(mechanic?.is_available ?? false);
   const [isToggling, setIsToggling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
 
   // Navigate to active job if exists
   useEffect(() => {
-    if (currentJob) {
-      navigate('/job');
-    }
+    if (currentJob) navigate('/job');
   }, [currentJob, navigate]);
 
   // Navigate to incoming job modal
   useEffect(() => {
-    if (incomingJob) {
-      navigate('/incoming');
-    }
+    if (incomingJob) navigate('/incoming');
   }, [incomingJob, navigate]);
 
   // Location tracking when online
   useEffect(() => {
     if (!isOnline) return;
 
-    const updateLocationPeriodically = () => {
+    const sendLocation = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            updateLocation(position.coords.latitude, position.coords.longitude);
-          },
-          (error) => {
-            console.warn('Location error:', error.message);
-          },
+          (pos) => updateLocation(pos.coords.latitude, pos.coords.longitude),
+          (err) => console.warn('Location error:', err.message),
           { enableHighAccuracy: true, timeout: 10000 }
         );
       }
     };
 
-    // Initial update
-    updateLocationPeriodically();
-
-    // Update every 30 seconds
-    const interval = setInterval(updateLocationPeriodically, 30000);
-
+    sendLocation();
+    const interval = setInterval(sendLocation, 30000);
     return () => clearInterval(interval);
   }, [isOnline]);
 
@@ -60,15 +55,58 @@ const HomeScreen: React.FC = () => {
       const newStatus = !isOnline;
       await updateAvailability(newStatus);
       setIsOnline(newStatus);
-    } catch (error) {
-      console.error('Failed to update availability:', error);
+    } catch {
+      // availability toggle failed silently
     } finally {
       setIsToggling(false);
     }
   };
 
+  // Pull-to-refresh
+  const doRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await updateAvailability(isOnline); // re-sync availability state
+    } catch {}
+    setIsRefreshing(false);
+  }, [isOnline]);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    isPulling.current = window.scrollY === 0;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isPulling.current) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0) setPullY(Math.min(delta, PULL_THRESHOLD * 1.5));
+  };
+
+  const onTouchEnd = () => {
+    if (pullY >= PULL_THRESHOLD) doRefresh();
+    setPullY(0);
+    isPulling.current = false;
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-background safe-area-top safe-area-bottom">
+    <div
+      className="min-h-screen flex flex-col bg-background safe-area-top safe-area-bottom"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {(pullY >= PULL_THRESHOLD || isRefreshing) && (
+        <div className="flex items-center justify-center gap-2 py-2 bg-primary/5 text-primary text-sm">
+          {isRefreshing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4" />
+          )}
+          {isRefreshing ? 'Refreshing…' : 'Release to refresh'}
+        </div>
+      )}
+
       {/* Header */}
       <header className="px-4 py-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
@@ -81,13 +119,24 @@ const HomeScreen: React.FC = () => {
               <p className="text-sm text-muted-foreground">{mechanic?.specialty}</p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/profile')}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-            aria-label="View profile"
-          >
-            <User className="w-5 h-5 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigate('/history')}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Job history"
+            >
+              <History className="w-5 h-5 text-muted-foreground" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="View profile"
+            >
+              <User className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -96,7 +145,6 @@ const HomeScreen: React.FC = () => {
         {/* Status Card */}
         <div className="card-industrial p-6">
           <div className="flex flex-col items-center text-center">
-            {/* Status Indicator */}
             <div className="relative mb-4">
               <div
                 className={`w-24 h-24 rounded-full flex items-center justify-center transition-colors ${
@@ -114,20 +162,17 @@ const HomeScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* Status Text */}
             <div className="mb-6">
               <h2 className="text-xl font-bold text-foreground mb-1">
                 {isOnline ? 'Online' : 'Offline'}
               </h2>
               <p className="text-muted-foreground">
-                {isOnline
-                  ? 'Waiting for job requests...'
-                  : 'Go online to receive jobs'}
+                {isOnline ? 'Waiting for job requests...' : 'Go online to receive jobs'}
               </p>
             </div>
 
-            {/* Toggle Button */}
             <button
+              type="button"
               onClick={handleToggleAvailability}
               disabled={isToggling}
               className={`w-full btn-touch flex items-center justify-center gap-2 ${
@@ -169,13 +214,6 @@ const HomeScreen: React.FC = () => {
               <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
             </div>
           </div>
-        )}
-
-        {isOnline && (
-          <button
-            className="mt-auto flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-accent/30 text-accent hover:bg-accent/5 transition-colors"
-          >
-          </button>
         )}
       </main>
     </div>

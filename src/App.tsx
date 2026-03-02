@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JobProvider } from "@/contexts/JobContext";
+import { NetworkBanner } from "@/components/NetworkBanner";
 
 // Screens
 import LoginScreen from "@/screens/LoginScreen";
@@ -12,6 +13,8 @@ import HomeScreen from "@/screens/HomeScreen";
 import IncomingJobScreen from "@/screens/IncomingJobScreen";
 import ActiveJobScreen from "@/screens/ActiveJobScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
+import JobHistoryScreen from "@/screens/JobHistoryScreen";
+import CompletionScreen from "@/screens/CompletionScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -97,6 +100,22 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute>
+            <JobHistoryScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/completion"
+        element={
+          <ProtectedRoute>
+            <CompletionScreen />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -107,6 +126,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <JobProvider>
+          <NetworkBanner />
           <Toaster />
           <Sonner />
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

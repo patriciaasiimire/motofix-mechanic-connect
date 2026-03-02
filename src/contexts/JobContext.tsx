@@ -3,6 +3,43 @@ import type { Job, JobStatus } from '@/types/mechanic';
 import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile, getStoredMechanicId } from '@/services/api';
 import { connectJobsWebSocket, type JobEvent } from '@/services/ws';
 import { useToast } from '@/hooks/use-toast';
+import { useFeedback } from '@/hooks/use-feedback';
+
+// ─── Job history (persisted to localStorage) ─────────────────────────────────
+
+export interface CompletedJobRecord {
+  id: number;
+  vehicle_type: string;
+  problem_description: string;
+  customer_location: string;
+  completedAt: string;
+}
+
+const HISTORY_KEY = 'motofix_job_history';
+
+function saveToHistory(job: Job) {
+  try {
+    const record: CompletedJobRecord = {
+      id: job.id,
+      vehicle_type: job.vehicle_type,
+      problem_description: job.problem_description,
+      customer_location: job.customer_location,
+      completedAt: new Date().toISOString(),
+    };
+    const prev: CompletedJobRecord[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    localStorage.setItem(HISTORY_KEY, JSON.stringify([record, ...prev].slice(0, 50)));
+  } catch {}
+}
+
+export function getJobHistory(): CompletedJobRecord[] {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+// ─── Context ──────────────────────────────────────────────────────────────────
 
 interface JobContextType {
   currentJob: Job | null;
@@ -22,6 +59,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [incomingJob, setIncomingJob] = useState<Job | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const toast = useToast();
+  const feedback = useFeedback();
 
   const rejectJob = useCallback(async () => {
     if (!incomingJob) return;
@@ -40,14 +78,19 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await apiUpdateJobStatus(currentJob.id, status as "en_route" | "completed" | "cancelled");
       if (status === 'completed') {
+        saveToHistory(currentJob);
         setCurrentJob(null);
       } else {
         setCurrentJob({ ...currentJob, status });
+        feedback.onStatusUpdated();
       }
+    } catch (err: any) {
+      feedback.onError();
+      toast.toast({ title: 'Status update failed', description: err?.message || 'Please try again', duration: 4000 });
     } finally {
       setIsProcessing(false);
     }
-  }, [currentJob]);
+  }, [currentJob, feedback, toast]);
 
   const clearJob = useCallback(() => {
     setCurrentJob(null);
@@ -59,8 +102,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (evt.type === 'new_job') {
         if (!currentJob && !incomingJob) {
           setIncomingJob(evt.job as Job);
-          try { window.navigator.vibrate?.(200); } catch (e) {}
-          try { new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg').play().catch(() => {}); } catch (e) {}
+          feedback.onIncomingJob();
           toast.toast({ title: 'New job!', description: 'A job request is available', duration: 5000 });
         }
       }
@@ -104,14 +146,16 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await apiAcceptJob(incomingJob.id, mechanicId, mechanicName);
       setCurrentJob(incomingJob);  // use incomingJob directly — it has the correct id
       setIncomingJob(null);
+      feedback.onJobAccepted();
       toast.toast({ title: 'Accepted', description: 'Job accepted — good luck!', duration: 4000 });
     } catch (err: any) {
+      feedback.onError();
       setIncomingJob(null);
       toast.toast({ title: 'Could not accept', description: err?.message || 'Job was taken by someone else', duration: 4000 });
     } finally {
       setIsProcessing(false);
     }
-  }, [incomingJob, toast]);
+  }, [incomingJob, feedback, toast]);
 
   return (
     <JobContext.Provider

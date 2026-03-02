@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (token) {
         try {
           const profile = await getMechanicProfile();
-          setMechanic(profile);
+          setMechanic(profile as unknown as Mechanic);
         } catch {
           apiLogout();
         }

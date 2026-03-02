@@ -1,8 +1,9 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, Wrench, Car, Star, LogOut, ChevronLeft, Moon, Sun } from 'lucide-react';
+import { User, Phone, Wrench, Car, Star, LogOut, ChevronLeft, Moon, Sun, Trophy, ChevronRight } from 'lucide-react';
 import { useDarkMode } from '@/hooks/use-dark-mode';
+import { loadStats, getLevelInfo } from '@/services/gamification';
 
 const ProfileScreen: React.FC = () => {
   const { mechanic, logout } = useAuth();
@@ -15,6 +16,9 @@ const ProfileScreen: React.FC = () => {
   };
 
   if (!mechanic) return null;
+
+  const gamStats = loadStats();
+  const { title: levelTitle } = getLevelInfo(gamStats.xp);
 
   const infoItems = [
     { icon: Phone, label: 'Phone', value: mechanic.phone },
@@ -66,6 +70,23 @@ const ProfileScreen: React.FC = () => {
           <h2 className="text-xl font-bold text-foreground">{mechanic.name}</h2>
           <p className="text-muted-foreground mt-1">{mechanic.location}</p>
         </div>
+
+        {/* Stats & Achievements Card */}
+        <button
+          type="button"
+          onClick={() => navigate('/stats')}
+          className="w-full card-industrial p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors text-left"
+        >
+          <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0">
+            <Trophy className="w-5 h-5 text-warning" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Rank</p>
+            <p className="text-foreground font-semibold mt-0.5">{levelTitle}</p>
+            <p className="text-xs text-muted-foreground">{gamStats.totalJobs} jobs · {gamStats.badges.length} badges · {gamStats.xp} XP</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        </button>
 
         {/* Info Cards */}
         <div className="space-y-3">

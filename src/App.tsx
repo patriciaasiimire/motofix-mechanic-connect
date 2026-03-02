@@ -15,6 +15,7 @@ import ActiveJobScreen from "@/screens/ActiveJobScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
 import JobHistoryScreen from "@/screens/JobHistoryScreen";
 import CompletionScreen from "@/screens/CompletionScreen";
+import StatsScreen from "@/screens/StatsScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -113,6 +114,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CompletionScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/stats"
+        element={
+          <ProtectedRoute>
+            <StatsScreen />
           </ProtectedRoute>
         }
       />

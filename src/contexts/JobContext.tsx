@@ -1,9 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { Job, JobStatus } from '@/types/mechanic';
+import type { XPBreakdown } from '@/types/gamification';
 import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile, getStoredMechanicId } from '@/services/api';
 import { connectJobsWebSocket, type JobEvent } from '@/services/ws';
 import { useToast } from '@/hooks/use-toast';
 import { useFeedback } from '@/hooks/use-feedback';
+import { addJobXP } from '@/services/gamification';
 
 // ─── Job history (persisted to localStorage) ─────────────────────────────────
 
@@ -48,7 +50,8 @@ interface JobContextType {
   setIncomingJob: (job: Job | null) => void;
   acceptJob: () => Promise<void>;
   rejectJob: () => Promise<void>;
-  updateStatus: (status: JobStatus) => Promise<void>;
+  /** Resolves with XPBreakdown when status === 'completed', null otherwise */
+  updateStatus: (status: JobStatus) => Promise<XPBreakdown | null>;
   clearJob: () => void;
 }
 
@@ -61,6 +64,9 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toast = useToast();
   const feedback = useFeedback();
 
+  // Timestamp recorded when mechanic taps "Accept" — used for speed bonus
+  const acceptedAtRef = useRef<number | null>(null);
+
   const rejectJob = useCallback(async () => {
     if (!incomingJob) return;
     setIsProcessing(true);
@@ -72,21 +78,26 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [incomingJob]);
 
-  const updateStatus = useCallback(async (status: JobStatus) => {
-    if (!currentJob) return;
+  const updateStatus = useCallback(async (status: JobStatus): Promise<XPBreakdown | null> => {
+    if (!currentJob) return null;
     setIsProcessing(true);
     try {
       await apiUpdateJobStatus(currentJob.id, status as "en_route" | "completed" | "cancelled");
       if (status === 'completed') {
+        const breakdown = addJobXP(acceptedAtRef.current);
+        acceptedAtRef.current = null;
         saveToHistory(currentJob);
         setCurrentJob(null);
+        return breakdown;
       } else {
         setCurrentJob({ ...currentJob, status });
         feedback.onStatusUpdated();
+        return null;
       }
     } catch (err: any) {
       feedback.onError();
       toast.toast({ title: 'Status update failed', description: err?.message || 'Please try again', duration: 4000 });
+      return null;
     } finally {
       setIsProcessing(false);
     }
@@ -139,6 +150,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const acceptJob = useCallback(async () => {
     if (!incomingJob) return;
     setIsProcessing(true);
+    acceptedAtRef.current = Date.now(); // start the speed timer
     try {
       const mechanicId = getStoredMechanicId() || 0;
       const profile = await getMechanicProfile().catch(() => null) as any;
@@ -150,6 +162,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       toast.toast({ title: 'Accepted', description: 'Job accepted — good luck!', duration: 4000 });
     } catch (err: any) {
       feedback.onError();
+      acceptedAtRef.current = null;
       setIncomingJob(null);
       toast.toast({ title: 'Could not accept', description: err?.message || 'Job was taken by someone else', duration: 4000 });
     } finally {

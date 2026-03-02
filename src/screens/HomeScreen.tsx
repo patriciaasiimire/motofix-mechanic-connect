@@ -3,7 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useJob } from '@/contexts/JobContext';
 import { updateAvailability, updateLocation } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, BellOff, Loader2, MapPin, History, RefreshCw } from 'lucide-react';
+import { User, Bell, BellOff, Loader2, MapPin, History, RefreshCw, Trophy } from 'lucide-react';
+import { StreakBadge } from '@/components/StreakBadge';
+import { loadStats, getLevelInfo } from '@/services/gamification';
 
 const PULL_THRESHOLD = 80; // px needed to trigger refresh
 
@@ -16,6 +18,8 @@ const HomeScreen: React.FC = () => {
   const [isToggling, setIsToggling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
+
+  const { title: levelTitle } = getLevelInfo(loadStats().xp);
 
   const touchStartY = useRef(0);
   const isPulling = useRef(false);
@@ -116,10 +120,19 @@ const HomeScreen: React.FC = () => {
             </div>
             <div>
               <h1 className="font-semibold text-foreground">{mechanic?.name}</h1>
-              <p className="text-sm text-muted-foreground">{mechanic?.specialty}</p>
+              <p className="text-xs text-muted-foreground">{levelTitle}</p>
             </div>
+            <StreakBadge className="ml-1" />
           </div>
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigate('/stats')}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Stats & Achievements"
+            >
+              <Trophy className="w-5 h-5 text-muted-foreground" />
+            </button>
             <button
               type="button"
               onClick={() => navigate('/history')}

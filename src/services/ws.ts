@@ -19,8 +19,10 @@ export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
   let ws: WebSocket | null = null;
   let reconnectTimer: number | null = null;
   let attempts = 0;
+  let closed = false; // set by close() to permanently stop all reconnects
 
   function connect() {
+    if (closed) return;
     const token = getToken();
     const url = token ? `${wsUrl}?token=${token}` : wsUrl;
 
@@ -41,6 +43,8 @@ export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
     };
 
     ws.onclose = (ev) => {
+      // onclose fires asynchronously even after close() is called — guard against it
+      if (closed) return;
       // Exponential backoff: 2s, 4s, 8s, capped at 30s
       attempts++;
       const delay = Math.min(2000 * Math.pow(2, attempts - 1), 30000);
@@ -59,7 +63,7 @@ export function connectJobsWebSocket(onEvent: (evt: JobEvent) => void) {
 
   return {
     close: () => {
-      attempts = 999; // prevent any pending reconnect from firing
+      closed = true; // must be set before ws.close() so onclose sees it
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       ws?.close();
     },

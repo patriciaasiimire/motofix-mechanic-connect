@@ -225,8 +225,16 @@ export async function acceptJob(
   return handleResponse<Record<string, unknown>>(res);
 }
 
-export async function rejectJob(_requestId: string | number) {
-  return Promise.resolve({ status: "rejected" });
+export async function rejectJob(requestId: string | number) {
+  try {
+    await fetch(`${REQUESTS_BASE}/requests/${requestId}/reject`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+  } catch {
+    // Network error — dismissal still happens locally; silent fail is fine.
+  }
+  return { status: "rejected" };
 }
 
 export async function updateJobStatus(

@@ -66,10 +66,13 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Timestamp recorded when mechanic taps "Accept" — used for speed bonus
   const acceptedAtRef = useRef<number | null>(null);
+  // IDs of jobs this mechanic explicitly rejected — suppress re-notification from the re-broadcast
+  const rejectedJobIdsRef = useRef<Set<number>>(new Set());
 
   const rejectJob = useCallback(async () => {
     if (!incomingJob) return;
     setIsProcessing(true);
+    rejectedJobIdsRef.current.add(incomingJob.id); // suppress re-broadcast notification
     try {
       await apiRejectJob(incomingJob.id);
       setIncomingJob(null);
@@ -111,8 +114,20 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const ws = connectJobsWebSocket((evt: JobEvent) => {
       if (evt.type === 'new_job') {
-        if (!currentJob && !incomingJob) {
+        const rawId = Number(evt.job?.id);
+        if (!currentJob && !incomingJob && !rejectedJobIdsRef.current.has(rawId)) {
           const raw = evt.job as any;
+          // Convert backend media_files → frontend Attachment[]
+          // Backend: { file_url, file_type: "voice"|"photo"|"document", file_name }
+          // Frontend: { id, url, type: "audio"|"image"|"document", filename }
+          const mediaFiles: any[] = raw.media_files ?? raw.attachments ?? [];
+          const attachments = mediaFiles.map((mf: any, idx: number) => ({
+            id: mf.id != null ? String(mf.id) : String(idx),
+            url: mf.url ?? mf.file_url ?? '',
+            type: (mf.file_type === 'voice' ? 'audio' : mf.file_type === 'photo' || mf.file_type === 'image' ? 'image' : 'document') as 'audio' | 'image' | 'document',
+            filename: mf.filename ?? mf.file_name ?? undefined,
+            created_at: mf.created_at ?? mf.uploaded_at ?? undefined,
+          }));
           const normalized: Job = {
             id: raw.id,
             vehicle_type: raw.vehicle_type ?? raw.service_type ?? '',
@@ -122,7 +137,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             customer_longitude: raw.customer_longitude ?? raw.longitude ?? null,
             status: raw.status ?? 'pending',
             created_at: raw.created_at ?? new Date().toISOString(),
-            attachments: raw.attachments,
+            attachments: attachments.length > 0 ? attachments : undefined,
           };
           setIncomingJob(normalized);
           feedback.onIncomingJob();

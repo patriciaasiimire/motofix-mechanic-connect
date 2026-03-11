@@ -60,7 +60,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Layout for the 4 bottom-nav tab screens
+// Layout for the 3 bottom-nav tab screens
 const MainLayout = ({ children }: { children: React.ReactNode }) => (
   <>
     {children}

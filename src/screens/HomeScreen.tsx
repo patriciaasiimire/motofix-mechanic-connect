@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useJob } from '@/contexts/JobContext';
 import { updateAvailability, updateLocation } from '@/services/api';
 import { useNavigate } from 'react-router-dom'; // still needed for job redirects
-import { User, Bell, BellOff, Loader2, MapPin, RefreshCw } from 'lucide-react';
+import { User, Bell, BellOff, Loader2, MapPin, RefreshCw, Wallet } from 'lucide-react';
 import { StreakBadge } from '@/components/StreakBadge';
 import { loadStats, getLevelInfo } from '@/services/gamification';
 
@@ -122,6 +122,14 @@ const HomeScreen: React.FC = () => {
             <p className="text-xs text-muted-foreground">{levelTitle}</p>
           </div>
           <StreakBadge />
+          <button
+            type="button"
+            onClick={() => navigate('/earnings')}
+            className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+            aria-label="Earnings"
+          >
+            <Wallet className="w-5 h-5" />
+          </button>
         </div>
       </header>
 

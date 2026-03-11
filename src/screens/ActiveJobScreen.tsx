@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJob } from '@/contexts/JobContext';
 import { useNavigate } from 'react-router-dom';
-import { Car, MapPin, ArrowRight, Check, Loader2, Phone } from 'lucide-react';
+import { Car, MapPin, ArrowRight, Check, Loader2, Phone, DollarSign, Send } from 'lucide-react';
 import type { JobStatus } from '@/types/mechanic';
 import AttachmentList from '@/components/attachments/AttachmentList';
-import { getCallPartner } from '@/services/api';
+import { getCallPartner, submitQuote, getQuote, type QuoteRecord } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
 /** Split "Nansana (0.369382, 32.513763)" into { name, coords } for display. */
@@ -27,12 +27,27 @@ const ActiveJobScreen: React.FC = () => {
   const toast = useToast();
   const [isCalling, setIsCalling] = useState(false);
 
+  // Quote state
+  const [quote, setQuote] = useState<QuoteRecord | null>(null);
+  const [quoteInput, setQuoteInput] = useState('');
+  const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
+  const [quoteFetched, setQuoteFetched] = useState(false);
+
   // Redirect if no current job
-  React.useEffect(() => {
+  useEffect(() => {
     if (!currentJob) {
       navigate('/', { replace: true });
     }
   }, [currentJob, navigate]);
+
+  // Load existing quote on mount or when job changes
+  useEffect(() => {
+    if (!currentJob || quoteFetched) return;
+    setQuoteFetched(true);
+    getQuote(currentJob.id)
+      .then(setQuote)
+      .catch(() => {/* no quote yet */});
+  }, [currentJob, quoteFetched]);
 
   if (!currentJob) {
     return null;
@@ -42,38 +57,37 @@ const ActiveJobScreen: React.FC = () => {
   const currentStatusInfo = STATUS_FLOW[currentStatusIndex];
   const nextStatus = STATUS_FLOW[currentStatusIndex + 1]?.status;
 
-  // Check if calling is allowed (only for accepted or on_the_way status)
-  // Note: Backend uses 'en_route' but frontend uses 'on_the_way' - backend will handle mapping
   const canCallDriver = currentJob.status === 'accepted' || currentJob.status === 'on_the_way';
+  const canQuote = currentJob.status === 'arrived' || currentJob.status === 'on_the_way';
 
   const handleCallDriver = async () => {
-    if (!canCallDriver) {
-      toast.toast({ 
-        title: 'Calling unavailable', 
-        description: 'Calling is only available for active jobs',
-        duration: 3000 
-      });
-      return;
-    }
-
     setIsCalling(true);
     try {
       const response = await getCallPartner(currentJob.id);
-      const phone = response.phone;
-      
-      // Never display the phone - just trigger the call
-      if (phone) {
-        window.location.href = `tel:${phone}`;
-      }
+      if (response.phone) window.location.href = `tel:${response.phone}`;
     } catch (error: any) {
-      const message = error?.message || error?.detail || 'Unable to call driver';
-      toast.toast({ 
-        title: 'Call failed', 
-        description: message,
-        duration: 4000 
-      });
+      toast.toast({ title: 'Call failed', description: error?.message || 'Unable to call driver', duration: 4000 });
     } finally {
       setIsCalling(false);
+    }
+  };
+
+  const handleSubmitQuote = async () => {
+    const amount = parseInt(quoteInput.replace(/,/g, ''), 10);
+    if (!amount || amount <= 10000) {
+      toast.toast({ title: 'Invalid amount', description: 'Quote must be greater than UGX 10,000', duration: 3000 });
+      return;
+    }
+    setIsSubmittingQuote(true);
+    try {
+      const result = await submitQuote(currentJob.id, amount);
+      setQuote(result);
+      setQuoteInput('');
+      toast.toast({ title: 'Quote sent', description: `UGX ${amount.toLocaleString()} sent to driver`, duration: 3000 });
+    } catch (error: any) {
+      toast.toast({ title: 'Quote failed', description: error?.message || 'Could not submit quote', duration: 4000 });
+    } finally {
+      setIsSubmittingQuote(false);
     }
   };
 
@@ -90,16 +104,11 @@ const ActiveJobScreen: React.FC = () => {
 
   const getStatusClass = (status: JobStatus) => {
     switch (status) {
-      case 'accepted':
-        return 'job-status-accepted';
-      case 'on_the_way':
-        return 'job-status-onway';
-      case 'arrived':
-        return 'job-status-arrived';
-      case 'completed':
-        return 'job-status-completed';
-      default:
-        return '';
+      case 'accepted': return 'job-status-accepted';
+      case 'on_the_way': return 'job-status-onway';
+      case 'arrived': return 'job-status-arrived';
+      case 'completed': return 'job-status-completed';
+      default: return '';
     }
   };
 
@@ -126,9 +135,7 @@ const ActiveJobScreen: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-muted-foreground mb-1">Vehicle</p>
-                <h2 className="text-lg font-bold text-foreground">
-                  {currentJob.vehicle_type}
-                </h2>
+                <h2 className="text-lg font-bold text-foreground">{currentJob.vehicle_type}</h2>
               </div>
             </div>
           </div>
@@ -136,11 +143,7 @@ const ActiveJobScreen: React.FC = () => {
           {/* Problem */}
           <div className="card-industrial p-5">
             <p className="text-sm text-muted-foreground mb-2">Problem</p>
-            <p className="text-foreground font-medium">
-              {currentJob.problem_description}
-            </p>
-            
-            {/* Customer Attachments */}
+            <p className="text-foreground font-medium">{currentJob.problem_description}</p>
             {currentJob.attachments && currentJob.attachments.length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <AttachmentList attachments={currentJob.attachments} />
@@ -161,15 +164,83 @@ const ActiveJobScreen: React.FC = () => {
                   return (
                     <>
                       <p className="text-foreground font-medium">{name}</p>
-                      {coords && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{coords}</p>
-                      )}
+                      {coords && <p className="text-xs text-muted-foreground mt-0.5">{coords}</p>}
                     </>
                   );
                 })()}
               </div>
             </div>
           </div>
+
+          {/* Quote Section – visible once mechanic has arrived */}
+          {canQuote && (
+            <div className="card-industrial p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign className="w-5 h-5 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Price Quote</p>
+              </div>
+
+              {quote ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Quoted amount</span>
+                    <span className="font-bold text-foreground text-lg">
+                      UGX {quote.quoted_amount.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Platform commission</span>
+                    <span>– UGX {quote.commission.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-semibold border-t border-border pt-2">
+                    <span className="text-muted-foreground">Your payout</span>
+                    <span className="text-success">UGX {quote.mechanic_payout.toLocaleString()}</span>
+                  </div>
+                  {quote.quote_approved && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-success">
+                      <Check className="w-3.5 h-3.5" />
+                      Driver approved this quote
+                    </div>
+                  )}
+                  {/* Allow updating the quote */}
+                  <button
+                    type="button"
+                    onClick={() => setQuote(null)}
+                    className="mt-2 text-xs text-primary underline"
+                  >
+                    Edit quote
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Enter the total repair cost. UGX 10,000 platform fee will be deducted.
+                  </p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">UGX</span>
+                      <input
+                        type="number"
+                        value={quoteInput}
+                        onChange={e => setQuoteInput(e.target.value)}
+                        placeholder="50000"
+                        className="w-full pl-12 pr-3 py-2.5 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSubmitQuote}
+                      disabled={isSubmittingQuote || !quoteInput}
+                      className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold disabled:opacity-50"
+                    >
+                      {isSubmittingQuote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Send
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Progress Tracker */}
           <div className="card-industrial p-5">
@@ -178,7 +249,6 @@ const ActiveJobScreen: React.FC = () => {
               {STATUS_FLOW.slice(0, -1).map((step, index) => {
                 const isCompleted = currentStatusIndex > index;
                 const isCurrent = currentStatusIndex === index;
-
                 return (
                   <React.Fragment key={step.status}>
                     <div className="flex flex-col items-center gap-1">
@@ -191,22 +261,12 @@ const ActiveJobScreen: React.FC = () => {
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >
-                        {isCompleted ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <span className="text-xs font-bold">{index + 1}</span>
-                        )}
+                        {isCompleted ? <Check className="w-4 h-4" /> : <span className="text-xs font-bold">{index + 1}</span>}
                       </div>
-                      <span className="text-[10px] text-muted-foreground text-center max-w-[60px]">
-                        {step.label}
-                      </span>
+                      <span className="text-[10px] text-muted-foreground text-center max-w-[60px]">{step.label}</span>
                     </div>
                     {index < STATUS_FLOW.length - 2 && (
-                      <div
-                        className={`h-0.5 flex-1 mx-1 ${
-                          isCompleted ? 'bg-success' : 'bg-muted'
-                        }`}
-                      />
+                      <div className={`h-0.5 flex-1 mx-1 ${isCompleted ? 'bg-success' : 'bg-muted'}`} />
                     )}
                   </React.Fragment>
                 );
@@ -215,18 +275,15 @@ const ActiveJobScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Call Driver Button - shown only during active job */}
+        {/* Call Driver Button */}
         {canCallDriver && (
           <button
+            type="button"
             onClick={handleCallDriver}
             disabled={isCalling || isProcessing}
             className="mt-4 btn-touch flex items-center justify-center gap-2 bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isCalling ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Phone className="w-5 h-5" />
-            )}
+            {isCalling ? <Loader2 className="w-5 h-5 animate-spin" /> : <Phone className="w-5 h-5" />}
             {isCalling ? 'Calling...' : 'Call Driver'}
           </button>
         )}
@@ -246,11 +303,7 @@ const ActiveJobScreen: React.FC = () => {
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
-                {nextStatus === 'completed' ? (
-                  <Check className="w-5 h-5" />
-                ) : (
-                  <ArrowRight className="w-5 h-5" />
-                )}
+                {nextStatus === 'completed' ? <Check className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
                 {currentStatusInfo?.nextLabel}
               </>
             )}

@@ -17,6 +17,7 @@ import ProfileScreen from "@/screens/ProfileScreen";
 import JobHistoryScreen from "@/screens/JobHistoryScreen";
 import CompletionScreen from "@/screens/CompletionScreen";
 import StatsScreen from "@/screens/StatsScreen";
+import EarningsScreen from "@/screens/EarningsScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -137,6 +138,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <StatsScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/earnings"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <EarningsScreen />
+            </MainLayout>
           </ProtectedRoute>
         }
       />

@@ -266,3 +266,60 @@ export async function getCallPartnerPhone(requestId: string | number) {
 
 // Alias used by ActiveJobScreen
 export const getCallPartner = getCallPartnerPhone;
+
+// ─── Payment / Quote endpoints  (→ motofix-service-requests) ─────────────────
+
+export interface QuoteRecord {
+  id: number;
+  request_id: number;
+  mechanic_id: number;
+  quoted_amount: number;
+  commission: number;
+  mechanic_payout: number;
+  quote_approved: boolean;
+  collection_status: string;
+  disbursement_status: string;
+  created_at: string;
+}
+
+export interface EarningsRecord {
+  id: number;
+  request_id: number;
+  quoted_amount: number;
+  commission: number;
+  mechanic_payout: number;
+  collection_status: string;
+  disbursement_status: string;
+  created_at: string;
+  customer_name: string;
+  service_type: string;
+}
+
+export interface EarningsResponse {
+  total_earned: number;
+  this_month: number;
+  earnings: EarningsRecord[];
+}
+
+export async function submitQuote(requestId: number, quotedAmount: number): Promise<QuoteRecord> {
+  const res = await fetch(`${REQUESTS_BASE}/payments/quote`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ request_id: requestId, quoted_amount: quotedAmount }),
+  });
+  return handleResponse<QuoteRecord>(res);
+}
+
+export async function getQuote(requestId: number): Promise<QuoteRecord> {
+  const res = await fetch(`${REQUESTS_BASE}/payments/quote/${requestId}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<QuoteRecord>(res);
+}
+
+export async function getEarnings(mechanicId: number): Promise<EarningsResponse> {
+  const res = await fetch(`${REQUESTS_BASE}/payments/earnings/${mechanicId}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<EarningsResponse>(res);
+}

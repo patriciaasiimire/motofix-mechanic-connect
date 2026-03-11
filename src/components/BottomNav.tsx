@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, History, User } from 'lucide-react';
+import { Home, History, User, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { path: '/history', icon: History, label: 'History' },
-  { path: '/',        icon: Home,    label: 'Home'    },
-  { path: '/profile', icon: User,    label: 'Profile' },
+  { path: '/history',  icon: History, label: 'History'  },
+  { path: '/',         icon: Home,    label: 'Home'     },
+  { path: '/earnings', icon: Wallet,  label: 'Earnings' },
+  { path: '/profile',  icon: User,    label: 'Profile'  },
 ] as const;
 
 export function BottomNav() {

@@ -4,9 +4,8 @@
 //   VITE_API_URL          → motofix-mechanics-service  (auth, profile, availability, location)
 //   VITE_REQUESTS_URL     → motofix-service-requests   (jobs, accept, status, call-partner)
 
-const MECHANICS_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const REQUESTS_BASE =
-  import.meta.env.VITE_REQUESTS_URL || "http://localhost:8001";
+const MECHANICS_BASE = import.meta.env.VITE_API_URL || "https://motofix-mechanics-service.onrender.com";
+const REQUESTS_BASE = import.meta.env.VITE_REQUESTS_URL || "https://motofix-service-requests.onrender.com";
 
 // ─── Auth token helpers ───────────────────────────────────────────────────────
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useJob } from '@/contexts/JobContext';
 import { useNavigate } from 'react-router-dom';
-import { Car, MapPin, ArrowRight, Check, Loader2, Phone, DollarSign, Send } from 'lucide-react';
+import { Car, MapPin, ArrowRight, Check, Loader2, Phone, DollarSign } from 'lucide-react';
 import type { JobStatus } from '@/types/mechanic';
 import AttachmentList from '@/components/attachments/AttachmentList';
-import { getCallPartner, submitQuote, getQuote, type QuoteRecord } from '@/services/api';
+import { getCallPartner, getQuote, type QuoteRecord } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
 /** Split "Nansana (0.369382, 32.513763)" into { name, coords } for display. */
@@ -26,39 +26,24 @@ const ActiveJobScreen: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [isCalling, setIsCalling] = useState(false);
-
-  // Quote state
   const [quote, setQuote] = useState<QuoteRecord | null>(null);
-  const [quoteInput, setQuoteInput] = useState('');
-  const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
-  const [quoteFetched, setQuoteFetched] = useState(false);
 
-  // Redirect if no current job
   useEffect(() => {
-    if (!currentJob) {
-      navigate('/', { replace: true });
-    }
+    if (!currentJob) navigate('/', { replace: true });
   }, [currentJob, navigate]);
 
-  // Load existing quote on mount or when job changes
+  // Load the quote that was submitted during job acceptance
   useEffect(() => {
-    if (!currentJob || quoteFetched) return;
-    setQuoteFetched(true);
-    getQuote(currentJob.id)
-      .then(setQuote)
-      .catch(() => {/* no quote yet */});
-  }, [currentJob, quoteFetched]);
+    if (!currentJob) return;
+    getQuote(currentJob.id).then(setQuote).catch(() => {/* no quote */});
+  }, [currentJob?.id]);
 
-  if (!currentJob) {
-    return null;
-  }
+  if (!currentJob) return null;
 
   const currentStatusIndex = STATUS_FLOW.findIndex(s => s.status === currentJob.status);
   const currentStatusInfo = STATUS_FLOW[currentStatusIndex];
   const nextStatus = STATUS_FLOW[currentStatusIndex + 1]?.status;
-
   const canCallDriver = currentJob.status === 'accepted' || currentJob.status === 'on_the_way';
-  const canQuote = currentJob.status === 'arrived' || currentJob.status === 'on_the_way';
 
   const handleCallDriver = async () => {
     setIsCalling(true);
@@ -69,25 +54,6 @@ const ActiveJobScreen: React.FC = () => {
       toast.toast({ title: 'Call failed', description: error?.message || 'Unable to call driver', duration: 4000 });
     } finally {
       setIsCalling(false);
-    }
-  };
-
-  const handleSubmitQuote = async () => {
-    const amount = parseInt(quoteInput.replace(/,/g, ''), 10);
-    if (!amount || amount <= 10000) {
-      toast.toast({ title: 'Invalid amount', description: 'Quote must be greater than UGX 10,000', duration: 3000 });
-      return;
-    }
-    setIsSubmittingQuote(true);
-    try {
-      const result = await submitQuote(currentJob.id, amount);
-      setQuote(result);
-      setQuoteInput('');
-      toast.toast({ title: 'Quote sent', description: `UGX ${amount.toLocaleString()} sent to driver`, duration: 3000 });
-    } catch (error: any) {
-      toast.toast({ title: 'Quote failed', description: error?.message || 'Could not submit quote', duration: 4000 });
-    } finally {
-      setIsSubmittingQuote(false);
     }
   };
 
@@ -118,16 +84,14 @@ const ActiveJobScreen: React.FC = () => {
       <header className="px-4 py-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-foreground">Active Job</h1>
-          <span className={getStatusClass(currentJob.status)}>
-            {currentStatusInfo?.label}
-          </span>
+          <span className={getStatusClass(currentJob.status)}>{currentStatusInfo?.label}</span>
         </div>
       </header>
 
-      {/* Job Info */}
       <main className="flex-1 flex flex-col p-4">
         <div className="flex-1 space-y-4">
-          {/* Vehicle Card */}
+
+          {/* Vehicle */}
           <div className="card-industrial p-5">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -172,73 +136,37 @@ const ActiveJobScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Quote Section – visible once mechanic has arrived */}
-          {canQuote && (
+          {/* Quote summary — read-only, submitted at job acceptance */}
+          {quote && (
             <div className="card-industrial p-5">
               <div className="flex items-center gap-2 mb-3">
                 <DollarSign className="w-5 h-5 text-primary" />
-                <p className="text-sm font-semibold text-foreground">Price Quote</p>
+                <p className="text-sm font-semibold text-foreground">Your Quote</p>
+                {quote.quote_approved && (
+                  <span className="ml-auto flex items-center gap-1 text-xs font-semibold text-success">
+                    <Check className="w-3.5 h-3.5" /> Driver approved
+                  </span>
+                )}
               </div>
-
-              {quote ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Quoted amount</span>
-                    <span className="font-bold text-foreground text-lg">
-                      UGX {quote.quoted_amount.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Platform commission</span>
-                    <span>– UGX {quote.commission.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs font-semibold border-t border-border pt-2">
-                    <span className="text-muted-foreground">Your payout</span>
-                    <span className="text-success">UGX {quote.mechanic_payout.toLocaleString()}</span>
-                  </div>
-                  {quote.quote_approved && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-success">
-                      <Check className="w-3.5 h-3.5" />
-                      Driver approved this quote
-                    </div>
-                  )}
-                  {/* Allow updating the quote */}
-                  <button
-                    type="button"
-                    onClick={() => setQuote(null)}
-                    className="mt-2 text-xs text-primary underline"
-                  >
-                    Edit quote
-                  </button>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Quoted to driver</span>
+                  <span className="font-bold text-foreground">UGX {quote.quoted_amount.toLocaleString()}</span>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    Enter the total repair cost. UGX 10,000 platform fee will be deducted.
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Commission</span>
+                  <span className="text-muted-foreground">– UGX {quote.commission.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs font-semibold border-t border-border pt-1.5">
+                  <span className="text-muted-foreground">Your payout</span>
+                  <span className="text-success">UGX {quote.mechanic_payout.toLocaleString()}</span>
+                </div>
+                {quote.collection_status === 'success' && (
+                  <p className="mt-1 text-xs text-success font-semibold">
+                    ✓ Driver has paid — your payout is being processed
                   </p>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">UGX</span>
-                      <input
-                        type="number"
-                        value={quoteInput}
-                        onChange={e => setQuoteInput(e.target.value)}
-                        placeholder="50000"
-                        className="w-full pl-12 pr-3 py-2.5 bg-muted border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleSubmitQuote}
-                      disabled={isSubmittingQuote || !quoteInput}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold disabled:opacity-50"
-                    >
-                      {isSubmittingQuote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      Send
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
@@ -252,15 +180,9 @@ const ActiveJobScreen: React.FC = () => {
                 return (
                   <React.Fragment key={step.status}>
                     <div className="flex flex-col items-center gap-1">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                          isCompleted
-                            ? 'bg-success text-success-foreground'
-                            : isCurrent
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                        isCompleted ? 'bg-success text-success-foreground' : isCurrent ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                      }`}>
                         {isCompleted ? <Check className="w-4 h-4" /> : <span className="text-xs font-bold">{index + 1}</span>}
                       </div>
                       <span className="text-[10px] text-muted-foreground text-center max-w-[60px]">{step.label}</span>
@@ -275,7 +197,7 @@ const ActiveJobScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Call Driver Button */}
+        {/* Call Driver */}
         {canCallDriver && (
           <button
             type="button"
@@ -288,15 +210,14 @@ const ActiveJobScreen: React.FC = () => {
           </button>
         )}
 
-        {/* Action Button */}
+        {/* Next status */}
         {nextStatus && (
           <button
+            type="button"
             onClick={handleNextStatus}
             disabled={isProcessing}
             className={`mt-6 btn-touch flex items-center justify-center gap-2 disabled:opacity-50 ${
-              nextStatus === 'completed'
-                ? 'bg-success text-success-foreground hover:bg-success/90'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              nextStatus === 'completed' ? 'bg-success text-success-foreground hover:bg-success/90' : 'bg-primary text-primary-foreground hover:bg-primary/90'
             }`}
           >
             {isProcessing ? (

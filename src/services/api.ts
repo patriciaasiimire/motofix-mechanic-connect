@@ -301,11 +301,15 @@ export interface EarningsResponse {
   earnings: EarningsRecord[];
 }
 
-export async function submitQuote(requestId: number, quotedAmount: number): Promise<QuoteRecord> {
+export async function submitQuote(requestId: number, quotedAmount: number, mechanicPhone?: string): Promise<QuoteRecord> {
   const res = await fetch(`${REQUESTS_BASE}/payments/quote`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ request_id: requestId, quoted_amount: quotedAmount }),
+    body: JSON.stringify({
+      request_id: requestId,
+      quoted_amount: quotedAmount,
+      ...(mechanicPhone ? { mechanic_phone: mechanicPhone } : {}),
+    }),
   });
   return handleResponse<QuoteRecord>(res);
 }

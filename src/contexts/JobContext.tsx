@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { Job, JobStatus } from '@/types/mechanic';
 import type { XPBreakdown } from '@/types/gamification';
-import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile, getStoredMechanicId } from '@/services/api';
+import { acceptJob as apiAcceptJob, rejectJob as apiRejectJob, updateJobStatus as apiUpdateJobStatus, getMechanicProfile, getStoredMechanicId, submitQuote } from '@/services/api';
 import { connectJobsWebSocket, type JobEvent } from '@/services/ws';
 import { useToast } from '@/hooks/use-toast';
 import { useFeedback } from '@/hooks/use-feedback';
@@ -48,7 +48,7 @@ interface JobContextType {
   incomingJob: Job | null;
   isProcessing: boolean;
   setIncomingJob: (job: Job | null) => void;
-  acceptJob: () => Promise<void>;
+  acceptJob: (quotedAmount: number) => Promise<void>;
   rejectJob: () => Promise<void>;
   /** Resolves with XPBreakdown when status === 'completed', null otherwise */
   updateStatus: (status: JobStatus) => Promise<XPBreakdown | null>;
@@ -174,7 +174,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentJob, incomingJob]);
 
-  const acceptJob = useCallback(async () => {
+  const acceptJob = useCallback(async (quotedAmount: number) => {
     if (!incomingJob) return;
     setIsProcessing(true);
     acceptedAtRef.current = Date.now(); // start the speed timer
@@ -182,11 +182,16 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const mechanicId = getStoredMechanicId() || 0;
       const profile = await getMechanicProfile().catch(() => null) as any;
       const mechanicName = profile?.full_name || profile?.name || 'Mechanic';
+      const mechanicPhone = profile?.phone || '';
+
+      // Submit quote first, then accept the job
+      await submitQuote(incomingJob.id, quotedAmount, mechanicPhone);
       await apiAcceptJob(incomingJob.id, mechanicId, mechanicName);
-      setCurrentJob({ ...incomingJob, status: 'accepted' });  // backend default is 'pending'; set 'accepted' so STATUS_FLOW works
+
+      setCurrentJob({ ...incomingJob, status: 'accepted' });
       setIncomingJob(null);
       feedback.onJobAccepted();
-      toast.toast({ title: 'Accepted', description: 'Job accepted — good luck!', duration: 4000 });
+      toast.toast({ title: 'Accepted', description: 'Job accepted — quote sent to driver!', duration: 4000 });
     } catch (err: any) {
       feedback.onError();
       acceptedAtRef.current = null;
